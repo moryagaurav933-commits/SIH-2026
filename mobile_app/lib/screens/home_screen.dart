@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../localization/app_language.dart';
+import '../localization/app_translations.dart';
+import '../providers/language_provider.dart';
+import '../providers/weather_provider.dart';
 import 'diagnosis/diagnosis_screen.dart';
 import 'weather/weather_screen.dart';
 import 'mandi/mandi_screen.dart';
@@ -23,36 +28,39 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  // Stitch Design Tokens — Tactile Pragmatism & Editorial Field Sanctuary
-  static const Color colorBg = Color(0xFFFAF8F5);
-  static const Color colorSurface = Color(0xFFFDFBF7);
+  // Design Tokens — Green + White + Red/Black/Yellow Theme
+  static const Color colorBg = Color(0xFFF5F9F5);
+  static const Color colorSurface = Color(0xFFF8FBF8);
   static const Color colorCard = Color(0xFFFFFFFF);
-  static const Color colorPrimary = Color(0xFF1B4332);
-  static const Color colorPrimaryForest = Color(0xFF153324);
-  static const Color colorPrimaryDeep = Color(0xFF081810);
-  static const Color colorPrimaryLight = Color(0xFF2D6A4F);
-  static const Color colorPrimarySoft = Color(0xFFE8F0EC);
-  static const Color colorSecondary = Color(0xFF8B5A2B);
-  static const Color colorBronze = Color(0xFFA3824C);
-  static const Color colorBronzeLight = Color(0xFFC2A268);
-  static const Color colorBronzeMuted = Color(0xFFEADBCE);
-  static const Color colorEarthAlert = Color(0xFF9B4522);
-  static const Color colorOchre = Color(0xFFC87D32);
-  static const Color colorOchreLight = Color(0xFFFAF3E8);
-  static const Color colorStoneText = Color(0xFF1E2420);
-  static const Color colorStoneMuted = Color(0xFF6E756F);
-  static const Color colorHairline = Color(0xFFE7E4DC);
+  static const Color colorPrimary = Color(0xFF2E7D32);
+  static const Color colorPrimaryForest = Color(0xFF1B5E20);
+  static const Color colorPrimaryDeep = Color(0xFF0A3D0A);
+  static const Color colorPrimaryLight = Color(0xFF4CAF50);
+  static const Color colorPrimarySoft = Color(0xFFE8F5E9);
+  static const Color colorSecondary = Color(0xFF1B5E20);
+  static const Color colorBronze = Color(0xFFFFC107);          // Yellow accent
+  static const Color colorBronzeLight = Color(0xFFFFD54F);     // Light yellow
+  static const Color colorEarthAlert = Color(0xFFD32F2F);      // Red accent
+  static const Color colorOchre = Color(0xFFFFA000);           // Deep yellow
+  static const Color colorOchreLight = Color(0xFFFFF8E1);      // Light yellow bg
+  static const Color colorStoneText = Color(0xFF1A1A1A);       // Black text
+  static const Color colorStoneMuted = Color(0xFF6B8F6B);      // Muted green
+  static const Color colorHairline = Color(0xFFE0E8E0);        // Green-tinted border
 
-  String _currentLanguage = 'Hinglish';
+  String get _currentLanguage {
+    try {
+      return Provider.of<LanguageProvider>(context, listen: true).displayName;
+    } catch (_) {
+      return 'Hinglish';
+    }
+  }
   AnimationController? _waveController;
 
   AnimationController get waveController {
-    if (_waveController == null) {
-      _waveController = AnimationController(
+    _waveController ??= AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 1200),
       )..repeat(reverse: true);
-    }
     return _waveController!;
   }
 
@@ -139,9 +147,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       toolbarHeight: 64,
       title: Row(
         children: [
-          const Text(
-            'Krishi-Saarthi',
-            style: TextStyle(
+          Text(
+            context.tr('app_name'),
+            style: const TextStyle(
               color: colorPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 22,
@@ -330,9 +338,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Text(
-                              '001 • LIVE CANOPY TELEMETRY',
-                              style: TextStyle(
+                            Text(
+                              context.tr('hero_badge_telemetry'),
+                              style: const TextStyle(
                                 color: Color(0xFFEADBCE),
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w700,
@@ -350,9 +358,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                         ),
-                        child: const Text(
-                          'RABI SEASON 2024-25',
-                          style: TextStyle(
+                        child: Text(
+                          context.tr('hero_badge_season'),
+                          style: const TextStyle(
                             color: Color(0xFFFDE68A),
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
@@ -368,9 +376,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Ram-Ram Rameshwar Ji — Khet surakshit hai',
-                        style: TextStyle(
+                      Text(
+                        context.tr('hero_main_title'),
+                        style: const TextStyle(
                           color: Color(0xFFFAF8F5),
                           fontSize: 19,
                           fontWeight: FontWeight.w700,
@@ -380,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Khet mein nami 42% hai. Agle 4 ghante mein barish ki sambhavna hai.',
+                        context.tr('hero_main_sub'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 11.5,
@@ -390,35 +398,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       const SizedBox(height: 12),
 
                       // Refined Tri-Metric Glass Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTriMetricPill(
-                              value: '42%',
-                              label: 'MITTI NAMI',
-                              sublabel: 'Moisture',
-                              onTap: () => _navigateTo(const DashboardScreen()),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildTriMetricPill(
-                              value: '31°C',
-                              label: 'SONIPAT',
-                              sublabel: 'Air Temp',
-                              onTap: () => _navigateTo(const WeatherScreen()),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildTriMetricPill(
-                              value: '0.78',
-                              label: 'NDVI HEALTH',
-                              sublabel: 'Canopy',
-                              onTap: () => _navigateTo(const DashboardScreen()),
-                            ),
-                          ),
-                        ],
+                      Consumer<WeatherProvider>(
+                        builder: (context, weatherProv, _) {
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _buildTriMetricPill(
+                                  value: '${weatherProv.currentHumidity}%',
+                                  label: context.tr('tri_moisture_label'),
+                                  sublabel: context.tr('tri_moisture_sub'),
+                                  onTap: () => _navigateTo(const DashboardScreen()),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildTriMetricPill(
+                                  value: '${weatherProv.currentTemp}°C',
+                                  label: context.tr('tri_temp_label'),
+                                  sublabel: context.tr('tri_temp_sub'),
+                                  onTap: () => _navigateTo(const WeatherScreen()),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildTriMetricPill(
+                                  value: '0.78',
+                                  label: context.tr('tri_canopy_label'),
+                                  sublabel: context.tr('tri_canopy_sub'),
+                                  onTap: () => _navigateTo(const DashboardScreen()),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -507,8 +519,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Text(
-                  'VECTOR INTELLIGENCE & TELEMETRY',
-                  style: TextStyle(
+                  context.tr('alert_section_title'),
+                  style: const TextStyle(
                     color: colorStoneText,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
@@ -580,9 +592,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              const Text(
-                                'PATHOGEN VECTOR ALERT · 12KM RADIUS',
-                                style: TextStyle(
+                              Text(
+                                context.tr('alert_card_badge'),
+                                style: const TextStyle(
                                   color: colorEarthAlert,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
@@ -596,18 +608,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ],
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Hawa mein Peela Ratua (Yellow Rust) ka risk mila hai',
-                        style: TextStyle(
+                      Text(
+                        context.tr('alert_card_title'),
+                        style: const TextStyle(
                           color: colorStoneText,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Pass ke 12km khet mein fafund ka asar hai. Dophar barish se pehle neem-tail ya bio-spray protocol check karein.',
-                        style: TextStyle(
+                      Text(
+                        context.tr('alert_card_sub'),
+                        style: const TextStyle(
                           color: colorStoneMuted,
                           fontSize: 11.5,
                           height: 1.35,
@@ -633,16 +645,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Row(
                             children: [
                               Text(
-                                'Protocol View',
-                                style: TextStyle(
+                                context.tr('alert_view_rx'),
+                                style: const TextStyle(
                                   color: colorPrimary,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   fontFamily: 'monospace',
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Text(
+                              SizedBox(width: 4),
+                              Text(
                                 '→',
                                 style: TextStyle(
                                   color: colorPrimary,
@@ -661,122 +673,802 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
-        // Weather & Soil Telemetry Card
-        InkWell(
-          onTap: () => _navigateTo(const WeatherScreen()),
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colorHairline),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Dynamic Weather & Soil Telemetry Section with Quick City Selector
+        Consumer<WeatherProvider>(
+          builder: (context, weatherProv, _) {
+            final lang = context.currentLanguage;
+            final condition = weatherProv.getCondition(lang);
+            final forecast = weatherProv.getRainForecast(lang);
+            final location = weatherProv.locationLabel;
+            final temp = '${weatherProv.currentTemp}°C';
+            final humidity = '${weatherProv.currentHumidity}%';
+            final isGps = weatherProv.isGpsLocation;
+            final isOffline = weatherProv.isOffline;
+            final icon = weatherProv.currentIcon;
+
+            final quickCities = [
+              'Sonipat',
+              'Pune',
+              'Lucknow',
+              'Indore',
+              'Jaipur',
+              'Patna',
+              'Varanasi',
+              'Nagpur',
+              'Bhopal',
+              'Ludhiana',
+            ];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: colorPrimarySoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.cloud_queue_rounded, color: colorPrimary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Sonipat, Haryana · 31°C',
-                              style: TextStyle(
-                                color: colorStoneText,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colorPrimarySoft,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Live Synced',
-                                style: TextStyle(
-                                  color: colorPrimary,
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Halki Nami · 4 ghante mein barish expected',
-                          style: TextStyle(color: colorStoneMuted, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.only(left: 12),
-                  decoration: const BoxDecoration(
-                    border: Border(left: BorderSide(color: colorHairline)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                // 1. Quick Location Switcher Pills Carousel
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
                     children: [
-                      const Text(
-                        'Mitti Nami:',
-                        style: TextStyle(
-                          color: colorStoneMuted,
-                          fontSize: 9.5,
-                          fontFamily: 'monospace',
-                        ),
+                      // Live GPS Button Chip
+                      _buildQuickLocationChip(
+                        label: context.tr('weather_gps_chip'),
+                        icon: Icons.my_location_rounded,
+                        isSelected: isGps,
+                        isLoading: weatherProv.isGpsLoading,
+                        onTap: () async {
+                          final ok = await weatherProv.fetchWeatherForGps();
+                          if (!ok && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(context.tr('weather_gps_denied')),
+                                backgroundColor: colorEarthAlert,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('📍 Live GPS: ${weatherProv.locationLabel}'),
+                                backgroundColor: colorPrimary,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
+                      const SizedBox(width: 8),
+
+                      // Popular Agricultural Hubs Chips
+                      ...quickCities.map((city) {
+                        final isSelected = !isGps &&
+                            location.toLowerCase().contains(city.toLowerCase());
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _buildQuickLocationChip(
+                            label: city,
+                            icon: Icons.location_city_rounded,
+                            isSelected: isSelected,
+                            isLoading: false,
+                            onTap: () {
+                              weatherProv.fetchWeatherForCity(city);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('🌤️ Loading weather for $city...'),
+                                  backgroundColor: colorPrimary,
+                                  duration: const Duration(milliseconds: 1200),
+                                ),
+                              );
+                            },
                           ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            '42%',
-                            style: TextStyle(
-                              color: colorPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
+                        );
+                      }),
+
+                      // Search City Button Chip
+                      _buildQuickLocationChip(
+                        label: context.currentLanguage == AppLanguage.hi
+                            ? 'अन्य शहर खोजें 🔍'
+                            : (context.currentLanguage == AppLanguage.hinglish
+                                ? 'City Khojein 🔍'
+                                : 'Search City 🔍'),
+                        icon: Icons.search_rounded,
+                        isSelected: false,
+                        isLoading: false,
+                        isAccent: true,
+                        onTap: () => _showLocationPickerSheet(weatherProv),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
+
+                // 2. Interactive Weather & Soil Telemetry Card
+                InkWell(
+                  onTap: () => _navigateTo(const WeatherScreen()),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: colorHairline),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Weather Icon Container
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: colorPrimarySoft,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: colorPrimary.withValues(alpha: 0.2)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  icon,
+                                  style: const TextStyle(fontSize: 22),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Center Content: Location, Temp, Condition, Forecast
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Location Title + Dropdown Caret + Status Badge
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: InkWell(
+                                          onTap: () => _showLocationPickerSheet(weatherProv),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  location,
+                                                  style: const TextStyle(
+                                                    color: colorStoneText,
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 2),
+                                              const Icon(
+                                                Icons.arrow_drop_down_rounded,
+                                                color: colorPrimary,
+                                                size: 18,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+
+                                      // Status Badge (Live GPS / Selected City / Offline)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isOffline
+                                              ? const Color(0xFFFFF3E0)
+                                              : (isGps ? colorPrimarySoft : const Color(0xFFE3F2FD)),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isOffline
+                                                ? const Color(0xFFFFB74D)
+                                                : (isGps ? colorPrimary.withValues(alpha: 0.2) : const Color(0xFF90CAF9)),
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (weatherProv.isLoading || weatherProv.isGpsLoading)
+                                              const Padding(
+                                                padding: EdgeInsets.only(right: 3),
+                                                child: SizedBox(
+                                                  width: 7,
+                                                  height: 7,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 1.5,
+                                                    color: colorPrimary,
+                                                  ),
+                                                ),
+                                              ),
+                                            Text(
+                                              isOffline
+                                                  ? 'Offline'
+                                                  : (isGps ? 'Live GPS' : 'Selected City'),
+                                              style: TextStyle(
+                                                color: isOffline
+                                                    ? const Color(0xFFE65100)
+                                                    : (isGps ? colorPrimary : const Color(0xFF1565C0)),
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w700,
+                                                fontFamily: 'monospace',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+
+                                  // Temperature & High / Low Range
+                                  Row(
+                                    children: [
+                                      Text(
+                                        temp,
+                                        style: const TextStyle(
+                                          color: colorStoneText,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'H: ${weatherProv.maxTemp}° · L: ${weatherProv.minTemp}°',
+                                        style: const TextStyle(
+                                          color: colorStoneMuted,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+
+                                  // Condition & Rain Forecast
+                                  Text(
+                                    '$condition · $forecast',
+                                    style: const TextStyle(color: colorStoneMuted, fontSize: 11),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (weatherProv.currentRainProb > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        '💧 ${weatherProv.currentRainProb}% barish sambhavna',
+                                        style: const TextStyle(
+                                          color: Color(0xFF1976D2),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Telemetry Column (Mitti Nami + Wind + Refresh button)
+                            Container(
+                              padding: const EdgeInsets.only(left: 10),
+                              decoration: const BoxDecoration(
+                                border: Border(left: BorderSide(color: colorHairline)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    'Mitti Nami:',
+                                    style: TextStyle(
+                                      color: colorStoneMuted,
+                                      fontSize: 9.5,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF10B981),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        humidity,
+                                        style: const TextStyle(
+                                          color: colorPrimary,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '💨 ${weatherProv.currentWind} km/h',
+                                        style: const TextStyle(
+                                          color: colorStoneMuted,
+                                          fontSize: 9.5,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      IconButton(
+                                        iconSize: 16,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                                        tooltip: 'Refresh Weather',
+                                        icon: (weatherProv.isLoading || weatherProv.isGpsLoading)
+                                            ? const SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child: CircularProgressIndicator(strokeWidth: 1.5, color: colorPrimary),
+                                              )
+                                            : const Icon(
+                                                Icons.refresh_rounded,
+                                                color: colorStoneMuted,
+                                                size: 16,
+                                              ),
+                                        onPressed: (weatherProv.isLoading || weatherProv.isGpsLoading)
+                                            ? null
+                                            : () => weatherProv.refresh(),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Card Footer Line
+                        Container(
+                          padding: const EdgeInsets.only(top: 8),
+                          decoration: const BoxDecoration(
+                            border: Border(top: BorderSide(color: colorHairline, width: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.wb_sunny_outlined, size: 12, color: colorPrimary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    context.currentLanguage == AppLanguage.hi
+                                        ? '5-दिवसीय कृषि मौसम पूर्वानुमान व सलाह'
+                                        : (context.currentLanguage == AppLanguage.hinglish
+                                            ? '5-Day Krishi Mausam & Advisory'
+                                            : '5-Day Agro Weather Forecast & Advisory'),
+                                    style: const TextStyle(
+                                      color: colorPrimary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 12,
+                                color: colorPrimary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ],
+    );
+  }
+
+  // ==========================================
+  // LOCATION SELECTOR & CHIP HELPERS
+  // ==========================================
+  Widget _buildQuickLocationChip({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required bool isLoading,
+    required VoidCallback onTap,
+    bool isAccent = false,
+  }) {
+    return InkWell(
+      onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorPrimary
+              : (isAccent ? colorPrimarySoft : Colors.white),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? colorPrimary
+                : (isAccent ? colorPrimary.withValues(alpha: 0.3) : colorHairline),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: colorPrimary.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLoading)
+              const Padding(
+                padding: EdgeInsets.only(right: 5),
+                child: SizedBox(
+                  width: 11,
+                  height: 11,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.8,
+                    color: colorPrimary,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(
+                  icon,
+                  size: 13,
+                  color: isSelected
+                      ? Colors.white
+                      : (isAccent ? colorPrimary : colorStoneMuted),
+                ),
+              ),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : (isAccent ? colorPrimaryForest : colorStoneText),
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLocationPickerSheet(WeatherProvider weatherProv) {
+    final searchController = TextEditingController();
+    final quickLocations = [
+      {'name': 'Sonipat', 'state': 'Haryana'},
+      {'name': 'Karnal', 'state': 'Haryana'},
+      {'name': 'Pune', 'state': 'Maharashtra'},
+      {'name': 'Nashik', 'state': 'Maharashtra'},
+      {'name': 'Nagpur', 'state': 'Maharashtra'},
+      {'name': 'Lucknow', 'state': 'Uttar Pradesh'},
+      {'name': 'Varanasi', 'state': 'Uttar Pradesh'},
+      {'name': 'Indore', 'state': 'Madhya Pradesh'},
+      {'name': 'Bhopal', 'state': 'Madhya Pradesh'},
+      {'name': 'Jaipur', 'state': 'Rajasthan'},
+      {'name': 'Kota', 'state': 'Rajasthan'},
+      {'name': 'Patna', 'state': 'Bihar'},
+      {'name': 'Muzaffarpur', 'state': 'Bihar'},
+      {'name': 'Ludhiana', 'state': 'Punjab'},
+      {'name': 'Bhatinda', 'state': 'Punjab'},
+      {'name': 'Surat', 'state': 'Gujarat'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.82,
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            top: 16,
+            left: 18,
+            right: 18,
+          ),
+          decoration: const BoxDecoration(
+            color: colorSurface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded, color: colorPrimary, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        context.currentLanguage == AppLanguage.hi
+                            ? 'स्थान या शहर चुनें'
+                            : (context.currentLanguage == AppLanguage.hinglish
+                                ? 'Location ya City Chunein'
+                                : 'Select or Search Location'),
+                        style: const TextStyle(
+                          color: colorStoneText,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: colorStoneMuted, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                context.currentLanguage == AppLanguage.hi
+                    ? 'लाइव जीपीएस या अपने जिले का चयन करें ताकि होम पेज पर सही डेटा दिखे।'
+                    : (context.currentLanguage == AppLanguage.hinglish
+                        ? 'Live GPS ya apna district chunein taaki home page par sahi mausam dikhe.'
+                        : 'Pick live GPS or your district to view accurate weather on Home Page.'),
+                style: const TextStyle(color: colorStoneMuted, fontSize: 11.5),
+              ),
+              const SizedBox(height: 14),
+
+              // 1. Live GPS Action Button
+              InkWell(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ok = await weatherProv.fetchWeatherForGps();
+                  if (!ok && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(context.tr('weather_gps_denied')),
+                        backgroundColor: colorEarthAlert,
+                      ),
+                    );
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('📍 Live GPS Synced: ${weatherProv.locationLabel}'),
+                        backgroundColor: colorPrimary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colorPrimarySoft,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colorPrimary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorPrimary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr('weather_gps_chip'),
+                              style: const TextStyle(
+                                color: colorPrimaryForest,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              context.currentLanguage == AppLanguage.hi
+                                  ? 'वर्तमान जीपीएस स्थान से स्वचालित डेटा लाएं'
+                                  : (context.currentLanguage == AppLanguage.hinglish
+                                      ? 'Current GPS coordinates se live data load karein'
+                                      : 'Auto-detect live coordinates & micro-climate'),
+                              style: const TextStyle(color: colorStoneMuted, fontSize: 10.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: colorPrimary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 2. City Search Bar
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (val) {
+                        if (val.trim().isNotEmpty) {
+                          Navigator.pop(ctx);
+                          weatherProv.fetchWeatherForCity(val.trim());
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: context.tr('weather_search_hint'),
+                        hintStyle: const TextStyle(color: colorStoneMuted, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, color: colorPrimary, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: colorHairline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: colorHairline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: colorPrimary, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final val = searchController.text.trim();
+                      if (val.isNotEmpty) {
+                        Navigator.pop(ctx);
+                        weatherProv.fetchWeatherForCity(val);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Go', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 3. Popular Farming Districts Header
+              Text(
+                context.currentLanguage == AppLanguage.hi
+                    ? 'प्रमुख कृषि जिले (1-टैप चयन)'
+                    : (context.currentLanguage == AppLanguage.hinglish
+                        ? 'Pramukh Krishi Districts (1-Tap Selection)'
+                        : 'Top Agricultural Districts (1-Tap Selection)'),
+                style: const TextStyle(
+                  color: colorStoneText,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 4. Wrap of District Chips
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: quickLocations.map((loc) {
+                      final cityName = loc['name']!;
+                      final stateName = loc['state']!;
+                      final isSelected = !weatherProv.isGpsLocation &&
+                          weatherProv.locationLabel.toLowerCase().contains(cityName.toLowerCase());
+
+                      return InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          weatherProv.fetchWeatherForCity(cityName);
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: isSelected ? colorPrimary : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected ? colorPrimary : colorHairline,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.location_city_rounded,
+                                size: 13,
+                                color: isSelected ? Colors.white : colorStoneMuted,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '$cityName ($stateName)',
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : colorStoneText,
+                                  fontSize: 11.5,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -803,8 +1495,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Text(
-                  'THE ESSENTIAL PROTOCOLS',
-                  style: TextStyle(
+                  context.tr('daily_tools_title'),
+                  style: const TextStyle(
                     color: colorStoneText,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
@@ -813,9 +1505,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ],
             ),
-            const Text(
-              'Daily Essential Tools',
-              style: TextStyle(
+            Text(
+              context.tr('daily_tools_sub'),
+              style: const TextStyle(
                 color: colorStoneMuted,
                 fontSize: 9.5,
                 fontFamily: 'monospace',
@@ -837,9 +1529,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '01',
               tag: 'MobileNetV4 · ONNX',
-              title: 'AI Fasal Doctor',
-              subtitle: 'Patti ka photo lein aur bimaari ka upchar payein.',
-              actionLabel: 'Photo Scan',
+              title: context.tr('tool_crop_doctor_title'),
+              subtitle: context.tr('tool_crop_doctor_sub'),
+              actionLabel: context.tr('tool_crop_doctor_action'),
               icon: Icons.psychology_outlined,
               iconBg: colorPrimarySoft,
               iconColor: colorPrimary,
@@ -848,9 +1540,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '02',
               tag: 'Dialect · Sherpa-STT',
-              title: 'Voice Saarthi',
-              subtitle: 'Apni boli mein bolkar kheti ki koi bhi salah lein.',
-              actionLabel: 'Bolkar Poochhein',
+              title: context.tr('tool_voice_title'),
+              subtitle: context.tr('tool_voice_sub'),
+              actionLabel: context.tr('tool_voice_action'),
               icon: Icons.record_voice_over_outlined,
               iconBg: const Color(0xFFFBF5EE),
               iconColor: colorSecondary,
@@ -859,9 +1551,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '03',
               tag: 'MSP & Spot · USSD',
-              title: 'Mandi Bhav Radar',
-              subtitle: 'Gehu ₹2,325/qtl · Sonipat mandi bina internet.',
-              actionLabel: 'Bhav Dekhein',
+              title: context.tr('tool_mandi_title'),
+              subtitle: context.tr('tool_mandi_sub'),
+              actionLabel: context.tr('tool_mandi_action'),
               icon: Icons.candlestick_chart_outlined,
               iconBg: const Color(0xFFF4F6F4),
               iconColor: colorPrimary,
@@ -870,9 +1562,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '04',
               tag: 'Hologram · Bloom Filter',
-              title: 'Khaad Parakh',
-              subtitle: 'Asli ya nakli? Khad bori barcode check karein.',
-              actionLabel: 'Bori Jaanch',
+              title: context.tr('tool_fertilizer_title'),
+              subtitle: context.tr('tool_fertilizer_sub'),
+              actionLabel: context.tr('tool_fertilizer_action'),
               icon: Icons.verified_outlined,
               iconBg: colorOchreLight,
               iconColor: colorOchre,
@@ -1033,8 +1725,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Text(
-                  'NATURAL DIALECT SYNTHESIS',
-                  style: TextStyle(
+                  context.tr('voice_section_header'),
+                  style: const TextStyle(
                     color: colorStoneText,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
@@ -1091,9 +1783,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
-                        'VOICE SAARTHI • CONTINUOUS LISTENING',
-                        style: TextStyle(
+                      Text(
+                        context.tr('voice_badge_listening'),
+                        style: const TextStyle(
                           color: Color(0xFFEADBCE),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -1122,9 +1814,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
               const SizedBox(height: 12),
-              const Text(
-                '“Gehu me doosra paani kab lagayein aur urea kitna daalein?”',
-                style: TextStyle(
+              Text(
+                context.tr('banner_quote'),
+                style: const TextStyle(
                   color: Color(0xFFFAF8F5),
                   fontSize: 16,
                   fontStyle: FontStyle.italic,
@@ -1135,7 +1827,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
               const SizedBox(height: 5),
               Text(
-                'Bina internet phone par boli mein baat karein. Tap Live Talk.',
+                context.tr('banner_hint'),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.72),
                   fontSize: 11,
@@ -1185,9 +1877,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         shape: BoxShape.circle,
                       ),
                     ),
-                    label: const Text(
-                      'LIVE TALK (बात करें)',
-                      style: TextStyle(
+                    label: Text(
+                      context.tr('banner_btn'),
+                      style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 10,
                         fontFamily: 'monospace',
@@ -1238,8 +1930,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Text(
-                  'GAON MESH TELEMETRY & NOTES',
-                  style: TextStyle(
+                  context.tr('mesh_section_header'),
+                  style: const TextStyle(
                     color: colorStoneText,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
@@ -1248,9 +1940,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ],
             ),
-            const Text(
-              'Peer-to-Peer Relay',
-              style: TextStyle(
+            Text(
+              context.tr('mesh_p2p_relay'),
+              style: const TextStyle(
                 color: colorStoneMuted,
                 fontSize: 9.5,
                 fontFamily: 'monospace',
@@ -1284,8 +1976,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Row(
                             children: [
                               Text(
-                                'JAGBIR SINGH',
-                                style: TextStyle(
+                                context.tr('mesh_dispatch_1_author'),
+                                style: const TextStyle(
                                   color: colorPrimary,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
@@ -1293,9 +1985,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                               ),
                               const Text(' / ', style: TextStyle(color: colorStoneMuted)),
-                              const Text(
-                                'MURTHAL SECTOR',
-                                style: TextStyle(
+                              Text(
+                                context.tr('mesh_dispatch_1_sector'),
+                                style: const TextStyle(
                                   color: colorStoneMuted,
                                   fontSize: 9.5,
                                   fontFamily: 'monospace',
@@ -1303,9 +1995,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ],
                           ),
-                          const Text(
-                            '15 MIN AGO',
-                            style: TextStyle(
+                          Text(
+                            context.tr('mesh_dispatch_1_time'),
+                            style: const TextStyle(
                               color: colorStoneMuted,
                               fontSize: 9,
                               fontFamily: 'monospace',
@@ -1314,16 +2006,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ],
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Mera gehu 45 din ka ho gaya hai. Kal sham ko halki sinchai ki thi, nami badhiya ban gayi hai.',
-                        style: TextStyle(
+                      Text(
+                        context.tr('mesh_dispatch_1_text'),
+                        style: const TextStyle(
                           color: colorStoneText,
                           fontSize: 12,
                           height: 1.35,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Row(
+                      SizedBox(height: 6),
+                      Row(
                         children: [
                           Text(
                             'PLOT: 3.8 ACRES',
@@ -1348,11 +2040,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                const Divider(color: colorHairline, height: 1),
+                Divider(color: colorHairline, height: 1),
 
                 // Dispatch 2
                 Padding(
-                  padding: const EdgeInsets.all(14.0),
+                  padding: EdgeInsets.all(14.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1370,8 +2062,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   fontFamily: 'monospace',
                                 ),
                               ),
-                              const Text(' / ', style: TextStyle(color: colorStoneMuted)),
-                              const Text(
+                              Text(' / ', style: TextStyle(color: colorStoneMuted)),
+                              Text(
                                 'RAI MANDI ZONE',
                                 style: TextStyle(
                                   color: colorStoneMuted,
@@ -1381,7 +2073,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ],
                           ),
-                          const Text(
+                          Text(
                             '1 HR AGO',
                             style: TextStyle(
                               color: colorStoneMuted,
@@ -1391,8 +2083,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      SizedBox(height: 6),
+                      Text(
                         'Rai mandi mein sarson ka bhav ₹5,450/qtl mila aaj. Kisaan bhai dhyan dein.',
                         style: TextStyle(
                           color: colorStoneText,
@@ -1400,8 +2092,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           height: 1.35,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Row(
+                      SizedBox(height: 6),
+                      Row(
                         children: [
                           Text(
                             'COMMODITY: MUSTARD',
@@ -1426,15 +2118,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                const Divider(color: colorHairline, height: 1),
+                Divider(color: colorHairline, height: 1),
 
                 // Footer
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+                  padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Tap to open village mesh radar & notes',
                         style: TextStyle(
                           color: colorStoneMuted,
@@ -1485,8 +2177,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 Text(
-                  'SPECIALIZED AGRONOMY SUITE',
-                  style: TextStyle(
+                  context.tr('suite_section_header'),
+                  style: const TextStyle(
                     color: colorStoneText,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
@@ -1519,9 +2211,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '05',
               tag: 'Geofence · NDVI',
-              title: 'Khet Geofencing',
-              subtitle: 'Sub-meter boundary mapping aur satellite se canopy health.',
-              actionLabel: 'Plot Map',
+              title: context.tr('suite_geofencing_title'),
+              subtitle: context.tr('suite_geofencing_sub'),
+              actionLabel: context.tr('suite_geofencing_action'),
               icon: Icons.satellite_alt_outlined,
               iconBg: const Color(0xFFE8F5E9),
               iconColor: const Color(0xFF2E7D32),
@@ -1530,9 +2222,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '06',
               tag: 'PMFBY · Satellite',
-              title: 'Fasal Bima Claim',
-              subtitle: 'Barish/sokha nuksaan ka sat-geotagged claim estimate.',
-              actionLabel: 'Claim Jaanch',
+              title: context.tr('suite_insurance_title'),
+              subtitle: context.tr('suite_insurance_sub'),
+              actionLabel: context.tr('suite_insurance_action'),
               icon: Icons.security_outlined,
               iconBg: const Color(0xFFEFF6FF),
               iconColor: const Color(0xFF1D4ED8),
@@ -1541,9 +2233,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '07',
               tag: 'KVK · NPK Ratio',
-              title: 'Soil Testing Lab',
-              subtitle: 'Mitti jaanch lab booking aur NPK urvarak salah.',
-              actionLabel: 'Lab Booking',
+              title: context.tr('suite_soil_title'),
+              subtitle: context.tr('suite_soil_sub'),
+              actionLabel: context.tr('suite_soil_action'),
               icon: Icons.science_outlined,
               iconBg: const Color(0xFFFDF2F8),
               iconColor: const Color(0xFFBE185D),
@@ -1552,9 +2244,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '08',
               tag: 'AR Guided · Nozzle',
-              title: 'AR Spray Guide',
-              subtitle: 'Hawa ki disha aur nozzle height dekh kar safe chhidkaw.',
-              actionLabel: 'AR Start',
+              title: context.tr('suite_ar_title'),
+              subtitle: context.tr('suite_ar_sub'),
+              actionLabel: context.tr('suite_ar_action'),
               icon: Icons.view_in_ar_outlined,
               iconBg: const Color(0xFFF5F3FF),
               iconColor: const Color(0xFF6D28D9),
@@ -1563,9 +2255,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '09',
               tag: '*99# · SMS Bridge',
-              title: 'USSD Offline Bridge',
-              subtitle: 'Bina internet feature phone se mandi aur bima SMS sync.',
-              actionLabel: 'USSD Dial',
+              title: context.tr('suite_ussd_title'),
+              subtitle: context.tr('suite_ussd_sub'),
+              actionLabel: context.tr('suite_ussd_action'),
               icon: Icons.cell_tower_outlined,
               iconBg: const Color(0xFFFFFBEB),
               iconColor: const Color(0xFFB45309),
@@ -1574,9 +2266,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildDailyToolCard(
               indexNum: '10',
               tag: 'Ledger · Drone Hub',
-              title: 'Krishi Yantra Hub',
-              subtitle: 'Chhidkaw drone, rotavator aur khet diary kharch lein.',
-              actionLabel: 'Hub Kholein',
+              title: context.tr('suite_hub_title'),
+              subtitle: context.tr('suite_hub_sub'),
+              actionLabel: context.tr('suite_hub_action'),
               icon: Icons.precision_manufacturing_outlined,
               iconBg: const Color(0xFFF1F5F9),
               iconColor: const Color(0xFF334155),
@@ -1593,7 +2285,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // ==========================================
   Widget _buildFloatingBottomDock() {
     return Container(
-      height: 64,
+      height: 68,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.96),
@@ -1613,7 +2305,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // 1. Home
           _buildDockItem(
             icon: Icons.yard_rounded,
-            label: 'Khet',
+            label: context.tr('dock_home'),
             isActive: true,
             onTap: () {},
           ),
@@ -1621,7 +2313,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // 2. Mandi
           _buildDockItem(
             icon: Icons.storefront_rounded,
-            label: 'Mandi',
+            label: context.tr('dock_mandi'),
             isActive: false,
             onTap: () => _navigateTo(const MandiScreen()),
           ),
@@ -1656,9 +2348,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 Transform.translate(
                   offset: const Offset(0, -8),
-                  child: const Text(
-                    'AI Scan',
-                    style: TextStyle(
+                  child: Text(
+                    context.tr('dock_ai_scan'),
+                    style: const TextStyle(
                       color: colorPrimary,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -1672,7 +2364,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // 4. Mesh
           _buildDockItem(
             icon: Icons.hub_rounded,
-            label: 'Mesh',
+            label: context.tr('dock_mesh'),
             isActive: false,
             onTap: () => _navigateTo(const MeshScreen()),
           ),
@@ -1680,7 +2372,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // 5. More Features Menu
           _buildDockItem(
             icon: Icons.grid_view_rounded,
-            label: '13 Features',
+            label: context.tr('dock_13_features'),
             isActive: false,
             onTap: _showFeaturesDrawer,
           ),
@@ -1806,20 +2498,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           child: const Icon(Icons.grid_view_rounded, color: colorPrimary, size: 20),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Krishi-Saarthi OS',
-                              style: TextStyle(
+                              context.tr('drawer_title'),
+                              style: const TextStyle(
                                 color: colorPrimary,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
-                              'All 13 Features · Offline Architecture',
-                              style: TextStyle(color: colorStoneMuted, fontSize: 11),
+                              context.tr('drawer_sub'),
+                              style: const TextStyle(color: colorStoneMuted, fontSize: 11),
                             ),
                           ],
                         ),
@@ -1840,8 +2532,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   children: [
                     _buildFeatureTile(
                       code: 'F-01',
-                      title: 'AI Leaf Disease Scanner',
-                      desc: 'Zero-network leaf disease inference using on-device ONNX/TFLite runtime.',
+                      title: context.tr('drawer_f1_title'),
+                      desc: context.tr('drawer_f1_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const DiagnosisScreen());
@@ -1849,8 +2541,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-02',
-                      title: 'Offline Llama Treatment Advisor',
-                      desc: 'Autonomous organic & bio-chemical spray prescriptions tailored to crop stage.',
+                      title: context.tr('drawer_f2_title'),
+                      desc: context.tr('drawer_f2_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const VoiceChatScreen());
@@ -1858,8 +2550,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-03',
-                      title: 'Bilingual Voice Saarthi',
-                      desc: 'Low-latency acoustic speech recognition and voice back in Hinglish & local dialect.',
+                      title: context.tr('drawer_f3_title'),
+                      desc: context.tr('drawer_f3_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const VoiceChatScreen());
@@ -1867,8 +2559,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-04',
-                      title: 'P2P Nearby Mesh Ferry',
-                      desc: 'Syncs pest alerts and village advisories peer-to-peer with no cellular network.',
+                      title: context.tr('drawer_f4_title'),
+                      desc: context.tr('drawer_f4_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const MeshScreen());
@@ -1876,8 +2568,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-05',
-                      title: 'Farm Plot Geofencing & Canopy',
-                      desc: 'Sub-meter boundary mapping, NDVI canopy monitoring and microclimate history.',
+                      title: context.tr('drawer_f5_title'),
+                      desc: context.tr('drawer_f5_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const DashboardScreen());
@@ -1885,8 +2577,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-06',
-                      title: 'APMC Mandi Bhav Radar',
-                      desc: 'Nearest grain markets, historical crop prices, and MSP comparison trends.',
+                      title: context.tr('drawer_f6_title'),
+                      desc: context.tr('drawer_f6_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const MandiScreen());
@@ -1894,8 +2586,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-07',
-                      title: 'Khaad Parakh (Fertilizer Verifier)',
-                      desc: 'Asli ya nakli? Hologram, QR + cryptographic Bloom filter check for DAP/Urea bags.',
+                      title: context.tr('drawer_f7_title'),
+                      desc: context.tr('drawer_f7_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const CounterfeitScreen());
@@ -1903,8 +2595,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-08',
-                      title: 'Blockchain Insurance Claim Locker',
-                      desc: 'Tamper-proof evidence locker with Merkle proof for PMFBY disaster claim audit.',
+                      title: context.tr('drawer_f8_title'),
+                      desc: context.tr('drawer_f8_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const InsuranceScreen());
@@ -1912,8 +2604,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-09',
-                      title: 'Kriging Vector GIS Risk Surface',
-                      desc: 'Continuous spatial interpolation for disease hotspot contagion visualization.',
+                      title: context.tr('drawer_f9_title'),
+                      desc: context.tr('drawer_f9_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const DashboardScreen());
@@ -1921,8 +2613,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-10',
-                      title: 'Soil Testing & NPK Diagnostic',
-                      desc: 'Camera Munsell color pH estimation and organic compost ratio calculator.',
+                      title: context.tr('drawer_f10_title'),
+                      desc: context.tr('drawer_f10_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const SoilTestScreen());
@@ -1930,8 +2622,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-11',
-                      title: 'AR Spray Guidance System',
-                      desc: 'Augmented reality overlay for nozzle distance, drift correction & microdose control.',
+                      title: context.tr('drawer_f11_title'),
+                      desc: context.tr('drawer_f11_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const ArSprayScreen());
@@ -1939,8 +2631,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-12',
-                      title: '2G USSD & SMS Gateway (*123#)',
-                      desc: 'Feature phone backward compatibility for weather & mandi advisory over 2G cellular.',
+                      title: context.tr('drawer_f12_title'),
+                      desc: context.tr('drawer_f12_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const UssdSmsScreen());
@@ -1948,8 +2640,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-13',
-                      title: 'Kisan Settings & Offline Engine',
-                      desc: 'Quantized INT4 weights management, storage cache purge and profile settings.',
+                      title: context.tr('drawer_f13_title'),
+                      desc: context.tr('drawer_f13_desc'),
                       onTap: () {
                         Navigator.pop(context);
                         _navigateTo(const SettingsScreen());
@@ -2041,11 +2733,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // 9. LANGUAGE PICKER MODAL
   // ==========================================
   void _showLanguagePicker() {
+    final langProvider = Provider.of<LanguageProvider>(context, listen: false);
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (ctx) {
         return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             color: colorSurface,
@@ -2058,13 +2755,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.language_rounded, color: colorPrimary, size: 20),
-                      SizedBox(width: 8),
+                      const Icon(Icons.language_rounded, color: colorPrimary, size: 20),
+                      const SizedBox(width: 8),
                       Text(
-                        'Bhasha Chunein (Language)',
-                        style: TextStyle(
+                        context.tr('choose_language'),
+                        style: const TextStyle(
                           color: colorStoneText,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -2074,14 +2771,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 20, color: colorStoneMuted),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _buildLangOption('Hinglish', 'Hindi & English bolchal · Kisan youth', 'Hn'),
-              _buildLangOption('हिन्दी', 'शुद्ध देवनागरी हिन्दी · पारम्परिक सलाह', 'हिं'),
-              _buildLangOption('English', 'Standard English · Agronomy guide', 'EN'),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: AppLanguage.values
+                      .map((l) => _buildLangOption(l, langProvider))
+                      .toList(),
+                ),
+              ),
               const SizedBox(height: 12),
             ],
           ),
@@ -2090,8 +2792,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildLangOption(String label, String subtitle, String code) {
-    final bool isSelected = _currentLanguage == label;
+  Widget _buildLangOption(AppLanguage lang, LanguageProvider langProvider) {
+    final bool isSelected = langProvider.currentLanguage == lang;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -2100,7 +2802,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
           onTap: () {
-            setState(() => _currentLanguage = label);
+            langProvider.setLanguage(lang);
             Navigator.pop(context);
           },
           child: Container(
@@ -2121,7 +2823,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   child: Center(
                     child: Text(
-                      code,
+                      lang.badge,
                       style: const TextStyle(
                         color: colorPrimary,
                         fontWeight: FontWeight.w700,
@@ -2136,7 +2838,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        label,
+                        lang.displayName,
                         style: const TextStyle(
                           color: colorStoneText,
                           fontSize: 14,
@@ -2145,7 +2847,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        subtitle,
+                        lang.subTitle,
                         style: const TextStyle(color: colorStoneMuted, fontSize: 11),
                       ),
                     ],

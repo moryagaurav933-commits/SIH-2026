@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 /// P2P Mesh Networking service using Google Nearby Connections API.
 /// Enables offline data sharing between farmer devices.
@@ -30,7 +31,7 @@ class MeshService {
       _isAdvertising = true;
       onStatusChanged?.call('advertising');
     } catch (e) {
-      print('Mesh advertising error: $e');
+      debugPrint('Mesh advertising error: $e');
     }
   }
 
@@ -44,7 +45,7 @@ class MeshService {
       _isDiscovering = true;
       onStatusChanged?.call('discovering');
     } catch (e) {
-      print('Mesh discovery error: $e');
+      debugPrint('Mesh discovery error: $e');
     }
   }
 
@@ -73,7 +74,7 @@ class MeshService {
         // In production: NearbyConnections.sendBytesPayload(peer.endpointId, packet.toBytes())
         onStatusChanged?.call('sent_to_${peer.deviceName}');
       } catch (e) {
-        print('Mesh send error to ${peer.deviceName}: $e');
+        debugPrint('Mesh send error to ${peer.deviceName}: $e');
       }
     }
 

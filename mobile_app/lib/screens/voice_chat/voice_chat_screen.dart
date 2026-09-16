@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../localization/app_language.dart';
+import '../../localization/app_translations.dart';
+import '../../providers/language_provider.dart';
 import '../../services/llm_service.dart';
 
-/// Bilingual Voice/Chat screen (Hindi & Hinglish).
+/// Multilingual Voice/Chat screen (Hinglish, Hindi, & English).
 /// Offline agricultural AI assistant with voice input & speech synthesis.
 class VoiceChatScreen extends StatefulWidget {
   const VoiceChatScreen({super.key});
@@ -16,14 +20,15 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
   final List<ChatMessage> _messages = [];
   bool _isListening = false;
   bool _isThinking = false;
+  bool _initializedGreeting = false;
   late AnimationController _pulseController;
 
-  final List<String> _quickSuggestions = [
-    'गेहूं में पीला रतुआ का इलाज क्या है?',
-    'आज सिंचाई करना चाहिए या नहीं?',
-    'डीएपी और यूरिया का सही अनुपात?',
-    'आलू में पछेता झुलसा से कैसे बचें?',
-    'मंडी में गेहूं का भाव क्या चल रहा है?',
+  List<String> get _quickSuggestions => [
+    context.tr('chat_quick_1'),
+    context.tr('chat_quick_2'),
+    context.tr('chat_quick_3'),
+    context.tr('chat_quick_4'),
+    context.tr('chat_quick_5'),
   ];
 
   @override
@@ -33,15 +38,21 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
+  }
 
-    // Initial greeting
-    _messages.add(
-      ChatMessage(
-        text: 'नमस्ते किसान भाई! 🙏 मैं कृषि-सारथी AI सहायक हूँ। आप अपनी फसल, मौसम, खाद या बीमारी के बारे में मुझसे बोलकर या लिखकर पूछ सकते हैं।',
-        isUser: false,
-        timestamp: DateTime.now(),
-      ),
-    );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedGreeting) {
+      _messages.add(
+        ChatMessage(
+          text: context.tr('chat_greeting'),
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+      _initializedGreeting = true;
+    }
   }
 
   @override
@@ -75,10 +86,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
     });
     _scrollToBottom();
 
-    // Generate response via Google Gemini LLM / Agricultural Knowledge Base
-    String response = await LLMService().answerQuestion(cleanQuery, 'hi');
-    if (response.isEmpty || response.contains('त्रुटि')) {
-      response = _generateAgriculturalAdvice(cleanQuery);
+    // Generate response via Google Gemini LLM / Agricultural Knowledge Base with current active language
+    final langProvider = Provider.of<LanguageProvider>(context, listen: false);
+    String response = await LLMService().answerQuestion(cleanQuery, langProvider.code);
+    if (response.isEmpty || response.contains('त्रुटि') || response.contains('Error') || response.contains('error')) {
+      response = _generateAgriculturalAdvice(cleanQuery, langProvider.currentLanguage);
     }
 
     if (mounted) {
@@ -95,11 +107,18 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
       setState(() => _isListening = false);
     } else {
       setState(() => _isListening = true);
+      final currentLang = Provider.of<LanguageProvider>(context, listen: false).currentLanguage;
+      final snackMsg = currentLang == AppLanguage.en
+          ? '🎙️ Listening to voice... speak now...'
+          : (currentLang == AppLanguage.hi
+              ? '🎙️ आवाज़ सुनी जा रही है... बोलिए...'
+              : '🎙️ Awaaz suni ja rahi hai... boliye... (Voice Listening)');
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎙️ आवाज़ सुनी जा रही है... बोलिए... (Voice Listening)'),
-          duration: Duration(seconds: 2),
-          backgroundColor: Color(0xFF2E7D32),
+        SnackBar(
+          content: Text(snackMsg),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF2E7D32),
         ),
       );
 
@@ -107,44 +126,137 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
       await Future.delayed(const Duration(seconds: 3));
       if (mounted && _isListening) {
         setState(() => _isListening = false);
-        _handleSendMessage('गेहूं में पीला रतुआ का इलाज क्या है?');
+        _handleSendMessage(_quickSuggestions.first);
       }
     }
   }
 
-  String _generateAgriculturalAdvice(String prompt) {
+  String _generateAgriculturalAdvice(String prompt, AppLanguage lang) {
     final lower = prompt.toLowerCase();
-    if (lower.contains('पीला रतुआ') || lower.contains('yellow rust') || lower.contains('रतुआ')) {
-      return '🌾 पीला रतुआ (Yellow Rust) के लिए सलाह:\n\n'
-          '1. तत्काल प्रोपिकोनाजोल 25% EC (टिल्ट) @ 1 मिली प्रति लीटर पानी में मिलाकर छिड़कें।\n'
-          '2. यूरिया (नाइट्रोजन) का प्रयोग तुरंत रोकें क्योंकि अधिक नाइट्रोजन से फफूंद तेजी से फैलती है।\n'
-          '3. 15 दिन बाद यदि लक्षण दिखें तो टेबुकोनाजोल का दूसरा छिड़काव करें।\n\n'
-          '⚠️ यह सलाह ICAR-भारतीय गेहूं अनुसंधान संस्थान के अनुसार है।';
-    } else if (lower.contains('मौसम') || lower.contains('सिंचाई') || lower.contains('water')) {
-      return '🌤️ मौसम और सिंचाई सलाह:\n\n'
-          '• अगले 48 घंटों में मौसम साफ से आंशिक बादलयुक्त रहेगा।\n'
-          '• परसों (Day 3) 65% वर्षा की संभावना है।\n'
-          '👉 सलाह: हल्की सिंचाई करें या वर्षा का इंतजार करें। जलभराव से बचने के लिए नालियों को साफ रखें।';
-    } else if (lower.contains('खाद') || lower.contains('यूरिया') || lower.contains('dap') || lower.contains('अनुपात')) {
-      return '🧪 संतुलित उर्वरक (Fertilizer) गाइड:\n\n'
-          '• गेहूं के लिए मानक N:P:K अनुपात 120:60:40 किग्रा/हेक्टेयर है।\n'
-          '• बुवाई के समय: डीएपी (50 किग्रा) + पोटाश (25 किग्रा) + यूरिया (30 किग्रा) प्रति एकड़ डालें।\n'
-          '• पहली व दूसरी सिंचाई पर: यूरिया 35-40 किग्रा प्रति एकड़ टॉप ड्रेसिंग करें।\n'
-          '💡 नैनो यूरिया (Nano Urea) 4 मिली/लीटर पानी का पर्णीय छिड़काव भी कर सकते हैं।';
-    } else if (lower.contains('आलू') || lower.contains('झुलसा') || lower.contains('blight')) {
-      return '🥔 आलू का पछेता झुलसा (Late Blight) प्रबंधन:\n\n'
-          '1. फफूंदनाशक: साइमोक्सानिल 8% + मैनकोजेब 64% WP @ 3 ग्राम/लीटर पानी में घोलकर छिड़कें।\n'
-          '2. खेत में नमी अधिक न रखें और ग्रसित पौधों को बाहर निकालें।\n'
-          '3. मौसम में धुंध व बादल रहने पर सुरक्षात्मक स्प्रे अवश्य करें।';
-    } else if (lower.contains('मंडी') || lower.contains('भाव') || lower.contains('price')) {
-      return '💰 आज का मंडी भाव (UP_LKO - लखनऊ):\n\n'
-          '• गेहूं (Sharbati): ₹2,550/क्विंटल (📈 +2.4%)\n'
-          '• धान (Basmati): ₹4,100/क्विंटल (मजबूत)\n'
-          '• सरसों: ₹5,450/क्विंटल (📈 +3.1%)\n'
-          '• आलू: ₹1,300/क्विंटल\n\n'
-          '💡 मंडी स्क्रीन पर जाकर विस्तृत 30-दिवसीय ट्रेंड चार्ट देखें।';
+
+    // 1. Yellow Rust / Fungus
+    if (lower.contains('पीला रतुआ') || lower.contains('yellow rust') || lower.contains('रतुआ') || lower.contains('ratua')) {
+      if (lang == AppLanguage.en) {
+        return '🌾 Wheat Yellow Rust Advisory:\n\n'
+            '1. Immediately spray Propiconazole 25% EC (Tilt) @ 1 ml per liter of water.\n'
+            '2. Stop excessive Urea (Nitrogen) application, as surplus nitrogen accelerates fungal spread.\n'
+            '3. After 15 days, apply a second spray of Tebuconazole if symptoms persist.\n\n'
+            '⚠️ Recommended per ICAR-Indian Institute of Wheat and Barley Research guidelines.';
+      } else if (lang == AppLanguage.hinglish) {
+        return '🌾 Peela Ratua (Yellow Rust) ke liye salah:\n\n'
+            '1. Turant Propiconazole 25% EC (Tilt) @ 1 ml/litre paani me milakar chhidkein.\n'
+            '2. Urea (Nitrogen) ka upyog turant rokein kyunki zyada nitrogen se fafund tezi se failta hai.\n'
+            '3. 15 din baad agar lakshan dikhein to Tebuconazole ka doosra chhidkaav karein.\n\n'
+            '⚠️ Yeh advisory ICAR guidelines ke mutabiq hai.';
+      } else {
+        return '🌾 पीला रतुआ (Yellow Rust) के लिए सलाह:\n\n'
+            '1. तत्काल प्रोपिकोनाजोल 25% EC (टिल्ट) @ 1 मिली प्रति लीटर पानी में मिलाकर छिड़कें।\n'
+            '2. यूरिया (नाइट्रोजन) का प्रयोग तुरंत रोकें क्योंकि अधिक नाइट्रोजन से फफूंद तेजी से फैलती है।\n'
+            '3. 15 दिन बाद यदि लक्षण दिखें तो टेबुकोनाजोल का दूसरा छिड़काव करें।\n\n'
+            '⚠️ यह सलाह ICAR-भारतीय गेहूं अनुसंधान संस्थान के अनुसार है।';
+      }
+    }
+
+    // 2. Weather & Irrigation
+    if (lower.contains('मौसम') || lower.contains('सिंचाई') || lower.contains('water') || lower.contains('weather') || lower.contains('sinchai') || lower.contains('irrigation')) {
+      if (lang == AppLanguage.en) {
+        return '🌤️ Weather & Irrigation Advisory:\n\n'
+            '• Next 48 hours will remain mostly clear to partly cloudy.\n'
+            '• 65% probability of localized precipitation on Day 3.\n'
+            '👉 Advice: Opt for light irrigation or hold off for rainfall. Ensure drainage channels are clear of silt.';
+      } else if (lang == AppLanguage.hinglish) {
+        return '🌤️ Mausam aur Sinchai Salah:\n\n'
+            '• Agle 48 ghanto me mausam saaf se thoda badal rahega.\n'
+            '• Parso (Day 3) 65% barish ki sambhavna hai.\n'
+            '👉 Salah: Halki sinchai karein ya barish ka wait karein. Jal-bhirav se bachne ke liye naliyon ko saaf rakhein.';
+      } else {
+        return '🌤️ मौसम और सिंचाई सलाह:\n\n'
+            '• अगले 48 घंटों में मौसम साफ से आंशिक बादलयुक्त रहेगा।\n'
+            '• परसों (Day 3) 65% वर्षा की संभावना है।\n'
+            '👉 सलाह: हल्की सिंचाई करें या वर्षा का इंतजार करें। जलभराव से बचने के लिए नालियों को साफ रखें।';
+      }
+    }
+
+    // 3. Fertilizers / DAP / Urea
+    if (lower.contains('खाद') || lower.contains('यूरिया') || lower.contains('dap') || lower.contains('अनुपात') || lower.contains('khad') || lower.contains('fertilizer') || lower.contains('ratio')) {
+      if (lang == AppLanguage.en) {
+        return '🧪 Balanced Fertilizer Guide:\n\n'
+            '• Standard N:P:K dosage for Wheat is 120:60:40 kg/ha.\n'
+            '• At Sowing: Apply DAP (50 kg) + Potash (25 kg) + Urea (30 kg) per acre.\n'
+            '• 1st & 2nd Irrigation: Top-dress with Urea at 35-40 kg per acre.\n'
+            '💡 Nano Urea foliar spray (4 ml/L water) can boost nitrogen absorption efficiently.';
+      } else if (lang == AppLanguage.hinglish) {
+        return '🧪 Balanced Fertilizer Guide (Khaad Salah):\n\n'
+            '• Gehun ke liye standard N:P:K ratio 120:60:40 kg/ha hai.\n'
+            '• Buwai ke time: DAP (50 kg) + Potash (25 kg) + Urea (30 kg) prati acre dalein.\n'
+            '• Pehli aur doosri sinchai par: Urea 35-40 kg prati acre top-dressing karein.\n'
+            '💡 Nano Urea 4 ml/litre foliar spray se nitrogen absorption tezi se hota hai.';
+      } else {
+        return '🧪 संतुलित उर्वरक (Fertilizer) गाइड:\n\n'
+            '• गेहूं के लिए मानक N:P:K अनुपात 120:60:40 किग्रा/हेक्टेयर है।\n'
+            '• बुवाई के समय: डीएपी (50 किग्रा) + पोटाश (25 किग्रा) + यूरिया (30 किग्रा) प्रति एकड़ डालें।\n'
+            '• पहली व दूसरी सिंचाई पर: यूरिया 35-40 किग्रा प्रति एकड़ टॉप ड्रेसिंग करें।\n'
+            '💡 नैनो यूरिया (Nano Urea) 4 मिली/लीटर पानी का पर्णीय छिड़काव भी कर सकते हैं।';
+      }
+    }
+
+    // 4. Potato Blight
+    if (lower.contains('आलू') || lower.contains('झुलसा') || lower.contains('blight') || lower.contains('aaloo') || lower.contains('potato')) {
+      if (lang == AppLanguage.en) {
+        return '🥔 Potato Late Blight Management:\n\n'
+            '1. Fungicide: Spray Cymoxanil 8% + Mancozeb 64% WP @ 3g/liter water.\n'
+            '2. Avoid excess soil moisture and rogue out infected plants immediately.\n'
+            '3. Perform preventive spraying if dense fog or overcast skies occur.';
+      } else if (lang == AppLanguage.hinglish) {
+        return '🥔 Aaloo ka Pacheta Jhulsa (Late Blight) Roktham:\n\n'
+            '1. Fungicide: Cymoxanil 8% + Mancozeb 64% WP @ 3 gm/litre paani me milakar spray karein.\n'
+            '2. Khet me nami zyada na rehne dein aur sankramit paudhon ko nikaal lein.\n'
+            '3. Fog aur kohra hone par protective spray zaroor karein.';
+      } else {
+        return '🥔 आलू का पछेता झुलसा (Late Blight) प्रबंधन:\n\n'
+            '1. फफूंदनाशक: साइमोक्सानिल 8% + मैनकोजेब 64% WP @ 3 ग्राम/लीटर पानी में घोलकर छिड़कें।\n'
+            '2. खेत में नमी अधिक न रखें और ग्रसित पौधों को बाहर निकालें।\n'
+            '3. मौसम में धुंध व बादल रहने पर सुरक्षात्मक स्प्रे अवश्य करें।';
+      }
+    }
+
+    // 5. Mandi Rates
+    if (lower.contains('मंडी') || lower.contains('भाव') || lower.contains('price') || lower.contains('rate') || lower.contains('bhav') || lower.contains('mandi')) {
+      if (lang == AppLanguage.en) {
+        return '💰 Today’s Mandi Benchmark (UP_LKO - Lucknow):\n\n'
+            '• Wheat (Sharbati): ₹2,550/quintal (📈 +2.4%)\n'
+            '• Paddy (Basmati): ₹4,100/quintal (Firm)\n'
+            '• Mustard: ₹5,450/quintal (📈 +3.1%)\n'
+            '• Potato: ₹1,300/quintal\n\n'
+            '💡 Visit the Mandi screen to view full 30-day historical trend charts.';
+      } else if (lang == AppLanguage.hinglish) {
+        return '💰 Aaj ka Mandi Bhav (UP_LKO - Lucknow):\n\n'
+            '• Gehun (Sharbati): ₹2,550/quintal (📈 +2.4%)\n'
+            '• Dhan (Basmati): ₹4,100/quintal (Strong)\n'
+            '• Sarson: ₹5,450/quintal (📈 +3.1%)\n'
+            '• Aaloo: ₹1,300/quintal\n\n'
+            '💡 Mandi screen par jaakar 30-day historical price trend chart check karein.';
+      } else {
+        return '💰 आज का मंडी भाव (UP_LKO - लखनऊ):\n\n'
+            '• गेहूं (Sharbati): ₹2,550/क्विंटल (📈 +2.4%)\n'
+            '• धान (Basmati): ₹4,100/क्विंटल (मजबूत)\n'
+            '• सरसों: ₹5,450/क्विंटल (📈 +3.1%)\n'
+            '• आलू: ₹1,300/क्विंटल\n\n'
+            '💡 मंडी स्क्रीन पर जाकर विस्तृत 30-दिवसीय ट्रेंड चार्ट देखें।';
+      }
+    }
+
+    // Default Fallback
+    if (lang == AppLanguage.en) {
+      return '🌾 Agricultural Expert Guidance:\n\n'
+          'For optimal crop yield, ensure timely irrigation schedules, balanced NPK nutrition, and proactive field monitoring.\n'
+          'If you spot leaf discoloration, spots, or pest activity, use the "AI Crop Doctor" tab to snap a photograph for instant diagnostic analysis.';
+    } else if (lang == AppLanguage.hinglish) {
+      return '🌾 Krishi Visheshagya Salah:\n\n'
+          'Aapki fasal ki acchi upaj ke liye samay par sinchai, santulit NPK khad aur regular monitoring zaroori hai.\n'
+          'Agar patti par koi keeda ya daag-dhabba dikhe, to "AI Fasal Doctor" tab me photo lekar instant jaanch karein.';
     } else {
-      return 'कृषि विशेषज्ञ सलाह:\n\n'
+      return '🌾 कृषि विशेषज्ञ सलाह:\n\n'
           'आपकी फसल के स्वस्थ विकास के लिए समय पर सिंचाई, संतुलित पोषण और नियमित निगरानी आवश्यक है।\n'
           'यदि पौधे में कोई धब्बा या कीड़ा दिख रहा है, तो "फसल निदान" (Crop Diagnosis) टैब से कैमरे द्वारा पत्ती की फोटो लेकर तत्काल जांच करें।';
     }
@@ -152,15 +264,23 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.currentLanguage;
+    final llmBadgeText = lang == AppLanguage.en
+        ? 'Offline LLM'
+        : (lang == AppLanguage.hi ? 'ऑफ़लाइन LLM' : 'Offline LLM');
+    final thinkingText = lang == AppLanguage.en
+        ? 'Krishi AI is thinking (offline)...'
+        : (lang == AppLanguage.hi ? 'कृषि AI सोच रहा है... (ऑफ़लाइन)' : 'Krishi AI soch raha hai... (offline)');
+
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Text('कृषि-सारथी चैट 🌾', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            SizedBox(width: 8),
+            Text('${context.tr('chat_title')} 🌾', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(width: 8),
             Chip(
-              label: Text('ऑफ़लाइन LLM', style: TextStyle(fontSize: 10, color: Colors.white)),
-              backgroundColor: Color(0xFF2E7D32),
+              label: Text(llmBadgeText, style: const TextStyle(fontSize: 10, color: Colors.white)),
+              backgroundColor: const Color(0xFF2E7D32),
               padding: EdgeInsets.zero,
             ),
           ],
@@ -169,8 +289,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
           IconButton(
             icon: const Icon(Icons.volume_up),
             onPressed: () {
+              final audioMsg = lang == AppLanguage.en
+                  ? '🔊 eSpeak NG English Voice is enabled'
+                  : (lang == AppLanguage.hi ? '🔊 eSpeak NG हिंदी वॉइस चालू है' : '🔊 eSpeak NG Voice chalu hai');
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('🔊 eSpeak NG हिंदी वॉइस चालू है')),
+                SnackBar(content: Text(audioMsg)),
               );
             },
             tooltip: 'Audio Output',
@@ -218,17 +341,17 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               alignment: Alignment.centerLeft,
-              child: const Row(
+              child: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50)),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Text(
-                    'कृषि AI सोच रहा है... (Thinking offline)',
-                    style: TextStyle(fontSize: 12, color: Colors.white60, fontStyle: FontStyle.italic),
+                    thinkingText,
+                    style: const TextStyle(fontSize: 12, color: Colors.white60, fontStyle: FontStyle.italic),
                   ),
                 ],
               ),
@@ -248,66 +371,71 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF1B5E20) : const Color(0xFF1E1E30),
+          color: isUser ? const Color(0xFF2E7D32) : const Color(0xFF1E1E2E),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isUser ? 16 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
-          border: Border.all(
-            color: isUser ? const Color(0xFF4CAF50) : const Color(0xFF3F51B5).withValues(alpha: 0.3),
-            width: 1,
-          ),
+          border: isUser
+              ? null
+              : Border.all(
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
+                  width: 1,
+                ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Sender tag
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  isUser ? Icons.person : Icons.smart_toy,
+                  isUser ? Icons.person : Icons.psychology,
                   size: 14,
-                  color: isUser ? Colors.lightGreenAccent : Colors.lightBlueAccent,
+                  color: isUser ? Colors.white70 : const Color(0xFF81C784),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Text(
-                  isUser ? 'आप (Farmer)' : 'कृषि-सारथी AI',
+                  isUser
+                      ? (context.currentLanguage == AppLanguage.en ? 'Farmer' : (context.currentLanguage == AppLanguage.hi ? 'किसान' : 'Kisan'))
+                      : (context.currentLanguage == AppLanguage.en ? 'Krishi-Saarthi AI' : (context.currentLanguage == AppLanguage.hi ? 'कृषि-सारथी AI' : 'Krishi-Saarthi AI')),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: isUser ? Colors.lightGreenAccent : Colors.lightBlueAccent,
+                    color: isUser ? Colors.white70 : const Color(0xFF81C784),
                   ),
                 ),
-                const Spacer(),
-                if (!isUser)
-                  IconButton(
-                    icon: const Icon(Icons.volume_up, size: 16, color: Colors.white60),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('🔊 उत्तर पढ़कर सुनाया जा रहा है...')),
-                      );
-                    },
-                    tooltip: 'Speak Text',
-                  ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(
+            // Message text
+            SelectableText(
               message.text,
-              style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.white),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                height: 1.45,
+              ),
             ),
             const SizedBox(height: 4),
+            // Timestamp
             Align(
               alignment: Alignment.bottomRight,
               child: Text(
                 '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 10, color: Colors.white38),
+                style: const TextStyle(fontSize: 9, color: Colors.white38),
               ),
             ),
           ],
@@ -317,16 +445,22 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
   }
 
   Widget _buildInputBar() {
+    final lang = context.currentLanguage;
+    final listeningHint = lang == AppLanguage.en
+        ? 'Listening... speak now...'
+        : (lang == AppLanguage.hi ? 'सुन रहा हूँ... बोलिए...' : 'Sun raha hoon... boliye...');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161622),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E2E),
+        border: Border(top: BorderSide(color: Color(0xFF2A2A3E), width: 1)),
       ),
       child: SafeArea(
+        top: false,
         child: Row(
           children: [
-            // Voice record button with pulse animation
+            // Mic button with pulse animation
             AnimatedBuilder(
               animation: _pulseController,
               builder: (context, child) {
@@ -336,7 +470,7 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
                     boxShadow: _isListening
                         ? [
                             BoxShadow(
-                              color: Colors.redAccent.withValues(alpha: 0.6 * _pulseController.value),
+                              color: Colors.redAccent.withValues(alpha: 0.6),
                               blurRadius: 16 * _pulseController.value,
                               spreadRadius: 4 * _pulseController.value,
                             ),
@@ -360,7 +494,7 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> with SingleTickerProv
                 controller: _textController,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: _isListening ? 'सुन रहा हूँ... बोलिए...' : 'हिंदी या Hinglish में लिखें...',
+                  hintText: _isListening ? listeningHint : context.tr('chat_input_hint'),
                   hintStyle: TextStyle(
                     color: _isListening ? Colors.redAccent : Colors.white38,
                     fontSize: 13,

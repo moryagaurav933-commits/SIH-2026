@@ -30,6 +30,15 @@ async def test_root_endpoint():
         assert data["docs"] == "/docs"
 
 @pytest.mark.asyncio
+async def test_docs_endpoint_theme():
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/docs")
+        assert response.status_code == 200
+        assert "--primary-green: #2E7D32" in response.text
+        assert "Krishi-Saarthi" in response.text
+
+@pytest.mark.asyncio
 async def test_weather_forecast():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

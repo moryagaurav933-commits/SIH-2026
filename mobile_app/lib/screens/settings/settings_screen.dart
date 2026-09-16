@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../localization/app_language.dart';
+import '../../localization/app_translations.dart';
+import '../../providers/language_provider.dart';
 import '../../services/llm_service.dart';
 
 /// Settings & System Configuration screen with AI Key & LLM management.
@@ -10,7 +14,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _language = 'hi';
   bool _offlineOnly = false;
   bool _meshRelay = true;
   bool _voiceFeedback = true;
@@ -54,7 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     setState(() => _isTestingKey = true);
-    _llmService.setCustomApiKey(key);
+    await _llmService.configureRemoteApiKey(key);
 
     try {
       final reply = await _llmService.answerQuestion('नमस्ते, क्या आप तैयार हैं?', 'hi');
@@ -85,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
       appBar: AppBar(
-        title: const Text('सेटिंग्स (Settings)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(context.tr('settings_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: const Color(0xFF1A1A2E),
       ),
       body: ListView(
@@ -177,33 +180,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 16),
           // Language section
-          _sectionHeader('भाषा और आवाज़ (Language & Voice)'),
+          _sectionHeader(context.tr('settings_lang_section')),
           Card(
             color: const Color(0xFF1B1B2A),
             child: Column(
               children: [
                 ListTile(
                   leading: const Icon(Icons.language, color: Colors.greenAccent),
-                  title: const Text('मुख्य भाषा (App Language)', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: Text(_language == 'hi' ? 'हिंदी (Hindi)' : 'English', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                  trailing: DropdownButton<String>(
-                    value: _language,
+                  title: Text(context.tr('settings_app_language'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: Text(
+                    context.watch<LanguageProvider>().subTitle,
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  trailing: DropdownButton<AppLanguage>(
+                    value: context.watch<LanguageProvider>().currentLanguage,
                     dropdownColor: const Color(0xFF252538),
                     underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'hi', child: Text('हिंदी', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'en', child: Text('English', style: TextStyle(color: Colors.white))),
-                      DropdownMenuItem(value: 'hinglish', child: Text('Hinglish', style: TextStyle(color: Colors.white))),
-                    ],
+                    items: AppLanguage.values.map((l) {
+                      return DropdownMenuItem<AppLanguage>(
+                        value: l,
+                        child: Text(
+                          l.displayName,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }).toList(),
                     onChanged: (val) {
-                      if (val != null) setState(() => _language = val);
+                      if (val != null) {
+                        Provider.of<LanguageProvider>(context, listen: false).setLanguage(val);
+                      }
                     },
                   ),
                 ),
                 SwitchListTile(
                   secondary: const Icon(Icons.record_voice_over, color: Colors.blueAccent),
-                  title: const Text('वॉइस आउटपुट (Voice TTS)', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: const Text('परिणाम और सलाह बोलकर सुनाएं', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                  title: Text(context.tr('settings_voice_output'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: Text(context.tr('settings_voice_sub'), style: const TextStyle(color: Colors.white60, fontSize: 12)),
                   value: _voiceFeedback,
                   activeThumbColor: const Color(0xFF4CAF50),
                   onChanged: (val) => setState(() => _voiceFeedback = val),

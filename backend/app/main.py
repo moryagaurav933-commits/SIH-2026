@@ -3,10 +3,16 @@ Krishi-Saarthi FastAPI Application Entry Point
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
 import time
 import structlog
+from sqlalchemy import text
+import redis.asyncio as aioredis
+import httpx
 
 from app.config import settings
 from app.api.v1.router import api_router
@@ -48,7 +54,7 @@ app = FastAPI(
         "P2P mesh networking, insurance evidence, and predictive disease mapping."
     ),
     lifespan=lifespan,
-    docs_url="/docs",
+    docs_url=None,
     redoc_url="/redoc",
 )
 
@@ -62,9 +68,9 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "*",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
     ],
-    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,23 +104,119 @@ async def krishi_exception_handler(request: Request, exc: KrishiSaarthiException
 app.include_router(api_router, prefix="/api/v1")
 
 
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    """Custom Swagger UI with Krishi-Saarthi Green & White agricultural theme."""
+    html_resp = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{settings.APP_NAME} — API Documentation",
+        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
+    )
+    custom_style = """<style>
+      :root {
+        --primary-green: #2E7D32;
+        --dark-green: #1B5E20;
+        --light-green: #E8F5E9;
+        --alert-red: #D32F2F;
+        --warn-yellow: #FFA000;
+        --deep-black: #0A1A0A;
+      }
+      .topbar { background-color: var(--deep-black) !important; border-bottom: 3px solid var(--primary-green) !important; padding: 10px 0 !important; }
+      .topbar .link { color: #FFFFFF !important; font-weight: 700 !important; font-size: 1.15rem !important; }
+      .topbar .link::after { content: "  [कृषि-सारथी API]"; font-size: 0.85rem; color: #A5D6A7; margin-left: 8px; }
+      .swagger-ui .info .title { color: var(--dark-green) !important; font-weight: 800 !important; }
+      .swagger-ui .info a { color: var(--primary-green) !important; }
+      .swagger-ui .opblock.opblock-get { border-color: var(--primary-green) !important; background: rgba(46, 125, 50, 0.05) !important; }
+      .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--primary-green) !important; }
+      .swagger-ui .opblock.opblock-post { border-color: var(--dark-green) !important; background: rgba(27, 94, 32, 0.05) !important; }
+      .swagger-ui .opblock.opblock-post .opblock-summary-method { background: var(--dark-green) !important; }
+      .swagger-ui .opblock.opblock-put { border-color: var(--warn-yellow) !important; background: rgba(255, 160, 0, 0.05) !important; }
+      .swagger-ui .opblock.opblock-put .opblock-summary-method { background: var(--warn-yellow) !important; }
+      .swagger-ui .opblock.opblock-delete { border-color: var(--alert-red) !important; background: rgba(211, 47, 47, 0.05) !important; }
+      .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: var(--alert-red) !important; }
+      .swagger-ui .btn.execute { background-color: var(--primary-green) !important; color: #FFFFFF !important; border-color: var(--primary-green) !important; border-radius: 6px !important; }
+      .swagger-ui .btn.authorize { color: var(--primary-green) !important; border-color: var(--primary-green) !important; border-radius: 6px !important; }
+      .swagger-ui .btn.authorize svg { fill: var(--primary-green) !important; }
+      .swagger-ui .model-title { color: var(--dark-green) !important; }
+      .swagger-ui section.models { border-color: #E0EBE0 !important; }
+      .swagger-ui section.models.is-open h4 { border-color: #E0EBE0 !important; }
+    </style></head>""".encode("utf-8")
+    new_body = html_resp.body.replace(b"</head>", custom_style)
+    headers = {k: v for k, v in html_resp.headers.items() if k.lower() != "content-length"}
+    return HTMLResponse(content=new_body, status_code=html_resp.status_code, headers=headers)
+
+
 @app.get("/health", tags=["System"])
 async def health_check():
-    """System health check endpoint."""
+    """System health check endpoint verifying PostgreSQL, Redis, and MinIO live."""
+    services = {}
+
+    # 1. PostgreSQL check
+    try:
+        async with engine.connect() as conn:
+            res = await conn.execute(text("SELECT count(*) FROM farmers"))
+            farmers_cnt = res.scalar()
+            services["postgresql"] = {
+                "status": "connected",
+                "engine": "PostgreSQL 16",
+                "port": 5433,
+                "farmers_seeded": farmers_cnt,
+            }
+    except Exception as e:
+        services["postgresql"] = {"status": "error", "error": str(e)}
+
+    # 2. Redis check
+    try:
+        r = aioredis.from_url(settings.REDIS_URL, socket_timeout=2.0)
+        pong = await r.ping()
+        await r.close()
+        services["redis"] = {
+            "status": "connected" if pong else "unresponsive",
+            "url": settings.REDIS_URL,
+            "port": 6379,
+            "ping": "PONG" if pong else "FAIL"
+        }
+    except Exception as e:
+        services["redis"] = {"status": "error", "error": str(e)}
+
+    # 3. MinIO check
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            minio_resp = await client.get(f"http://{settings.MINIO_ENDPOINT}/minio/health/live")
+            services["minio"] = {
+                "status": "connected" if minio_resp.status_code == 200 else f"http_{minio_resp.status_code}",
+                "endpoint": settings.MINIO_ENDPOINT,
+                "console_port": 9001,
+                "bucket": settings.MINIO_BUCKET,
+            }
+    except Exception as e:
+        services["minio"] = {"status": "error", "error": str(e)}
+
+    all_healthy = all(s.get("status") == "connected" for s in services.values())
     return {
-        "status": "healthy",
+        "status": "healthy" if all_healthy else "degraded",
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
+        "services": services
     }
 
 
 @app.get("/", tags=["System"])
 async def root():
-    """Root endpoint with API information."""
+    """Root endpoint with API information and application links."""
     return {
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "flutter_mobile_app": "/app",
         "docs": "/docs",
         "health": "/health",
         "api": "/api/v1",
     }
+
+
+# ─── Mount Flutter Web App as Static Files at /app ───
+mobile_web_path = Path(__file__).resolve().parent.parent.parent / "mobile_app" / "build" / "web"
+if mobile_web_path.exists():
+    app.mount("/app", StaticFiles(directory=str(mobile_web_path), html=True), name="mobile_web_app")
+
+

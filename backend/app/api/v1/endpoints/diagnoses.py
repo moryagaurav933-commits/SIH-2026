@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from typing import List, Optional
 from uuid import UUID
 from app.db.session import get_db
-from app.api.deps import get_current_farmer
+from app.api.deps import get_current_farmer, get_optional_farmer
 from app.models.farmer import Farmer
 from app.models.diagnosis import CropDiagnosis
 from app.models.disease_telemetry import DiseaseTelemetry
@@ -19,10 +19,25 @@ router = APIRouter(prefix="/diagnoses", tags=["Crop Diagnosis"])
 @router.post("/", response_model=DiagnosisResponse, status_code=status.HTTP_201_CREATED)
 async def submit_diagnosis(
     data: DiagnosisSubmit,
-    farmer: Farmer = Depends(get_current_farmer),
+    farmer: Optional[Farmer] = Depends(get_optional_farmer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Submit a new crop diagnosis result from on-device CV model."""
+    """Submit a new crop diagnosis result from on-device CV model or frontend."""
+    if farmer is None:
+        result = await db.execute(select(Farmer).limit(1))
+        farmer = result.scalar_one_or_none()
+        if not farmer:
+            farmer = Farmer(
+                name="Rameshwar Singh",
+                phone="9876543210",
+                district_code=data.district_code or "UP_LKO",
+                state="Uttar Pradesh",
+                aadhaar_hash="sha256_mock_farmer_aadhaar",
+                preferred_language="hi",
+            )
+            db.add(farmer)
+            await db.flush()
+
     diagnosis = CropDiagnosis(
         farmer_id=farmer.id,
         plot_id=data.plot_id,
@@ -36,7 +51,7 @@ async def submit_diagnosis(
         treatment_recommendation_hi=data.treatment_recommendation_hi,
         gps_lat=data.gps_lat,
         gps_lon=data.gps_lon,
-        district_code=data.district_code,
+        district_code=data.district_code or farmer.district_code,
         device_signature=data.device_signature,
         model_version=data.model_version,
         sync_status="synced",
@@ -49,7 +64,7 @@ async def submit_diagnosis(
             disease_name=data.disease_name,
             gps_lat=data.gps_lat,
             gps_lon=data.gps_lon,
-            district_code=data.district_code,
+            district_code=data.district_code or farmer.district_code,
             confidence=data.confidence,
             severity=data.severity,
             crop_type=data.crop_type,
@@ -63,14 +78,16 @@ async def submit_diagnosis(
 
 @router.get("/", response_model=List[DiagnosisResponse])
 async def get_diagnoses(
-    farmer: Farmer = Depends(get_current_farmer),
+    farmer: Optional[Farmer] = Depends(get_optional_farmer),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=50, le=200),
     offset: int = Query(default=0, ge=0),
     crop_type: Optional[str] = None,
 ):
-    """Get farmer's diagnosis history."""
-    query = select(CropDiagnosis).where(CropDiagnosis.farmer_id == farmer.id)
+    """Get farmer's diagnosis history, or recent community diagnoses if unauthenticated."""
+    query = select(CropDiagnosis)
+    if farmer:
+        query = query.where(CropDiagnosis.farmer_id == farmer.id)
     if crop_type:
         query = query.where(CropDiagnosis.crop_type == crop_type)
     query = query.order_by(CropDiagnosis.diagnosed_at.desc()).limit(limit).offset(offset)

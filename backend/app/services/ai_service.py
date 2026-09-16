@@ -132,14 +132,31 @@ class AIService:
         if not LLAMA_AVAILABLE:
             return None
         if _local_llm is None:
-            model_path = os.path.join("models", "tinyllama.gguf")
-            if os.path.exists(model_path):
-                logger.info("Loading Local Quantized LLM (GGUF)...")
+            # Check multiple potential model locations (root models, backend models, relative)
+            current_file_dir = os.path.dirname(os.path.abspath(__file__))
+            candidate_paths = [
+                os.path.join("models", "tinyllama.gguf"),
+                os.path.join("..", "models", "tinyllama.gguf"),
+                os.path.join(current_file_dir, "..", "..", "..", "models", "tinyllama.gguf"),
+                os.path.join(current_file_dir, "..", "..", "models", "tinyllama.gguf"),
+            ]
+            model_path = None
+            for p in candidate_paths:
+                norm_p = os.path.normpath(p)
+                if os.path.exists(norm_p):
+                    model_path = norm_p
+                    break
+
+            if model_path:
+                logger.info(f"Loading Local Quantized LLM (GGUF) from {model_path}...")
                 try:
                     # n_ctx limits context size to save RAM
                     _local_llm = Llama(model_path=model_path, n_ctx=2048, verbose=False)
+                    logger.info("Local Quantized TinyLlama LLM loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load local LLM: {e}")
+            else:
+                logger.info("Local tinyllama.gguf not found in search paths; using ICAR RAG knowledge engine.")
         return _local_llm
 
     @classmethod

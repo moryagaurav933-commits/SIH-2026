@@ -101,6 +101,7 @@ async def init_and_seed():
         )
 
         session.add_all([farmer1, farmer2, farmer3])
+        await session.flush()
 
         # 2. Farm Plots
         p1_id = uuid.uuid4()
@@ -132,6 +133,7 @@ async def init_and_seed():
         )
 
         session.add_all([plot1, plot2])
+        await session.flush()
 
         # 3. Crop Diagnoses
         diag1 = CropDiagnosis(

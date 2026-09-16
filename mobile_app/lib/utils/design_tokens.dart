@@ -9,55 +9,55 @@ import 'package:flutter/material.dart';
 // COLOR PALETTE (from Stitch Design System)
 // ─────────────────────────────────────────
 
-/// Background & Surface
-const Color colorBg         = Color(0xFFF8FAF6);
-const Color colorSurface    = Color(0xFFFDFBF7);
+/// Background & Surface — Clean White & Subtle Pale Green Tint
+const Color colorBg         = Color(0xFFF5F9F5);
+const Color colorSurface    = Color(0xFFFFFFFF);
 const Color colorCard       = Color(0xFFFFFFFF);
-const Color colorHairline   = Color(0xFFE7E4DC);
+const Color colorHairline   = Color(0xFFE2EBE2);
 
-/// Primary — Forest Emerald
-const Color colorPrimary      = Color(0xFF1B4332);
-const Color colorPrimaryDeep  = Color(0xFF0D2B1F);
-const Color colorPrimaryLight = Color(0xFF2D6A4F);
-const Color colorPrimarySoft  = Color(0xFFE8F0EC);
-const Color colorPrimaryMid   = Color(0xFF1E5E3A);
-const Color colorPrimaryContainer = Color(0xFF94D5A8);
+/// Primary — Agricultural Deep Green & Forest Green
+const Color colorPrimary      = Color(0xFF2E7D32);
+const Color colorPrimaryDeep  = Color(0xFF1B5E20);
+const Color colorPrimaryLight = Color(0xFF4CAF50);
+const Color colorPrimarySoft  = Color(0xFFE8F5E9);
+const Color colorPrimaryMid   = Color(0xFF2E7D32);
+const Color colorPrimaryContainer = Color(0xFFA5D6A7);
 
-/// Secondary — Harvest Amber / Warm Earth
-const Color colorAmber      = Color(0xFFD97706);
-const Color colorEarth      = Color(0xFF8B5A2B);
-const Color colorOchre      = Color(0xFFC87D32);
-const Color colorOchreLight = Color(0xFFFAF3E8);
+/// Secondary & Accent — Yellow / Gold Shades ONLY
+const Color colorAmber      = Color(0xFFFFC107);
+const Color colorEarth      = Color(0xFF2E7D32);
+const Color colorOchre      = Color(0xFFFFA000);
+const Color colorOchreLight = Color(0xFFFFF8E1);
 
-/// Tertiary — Soil Terracotta
-const Color colorTerracotta = Color(0xFFB45309);
-const Color colorEarthAlert = Color(0xFF9B4522);
+/// Alert & Danger — Red Shades ONLY
+const Color colorTerracotta = Color(0xFFD32F2F);
+const Color colorEarthAlert = Color(0xFFD32F2F);
 
-/// Text
-const Color colorStoneText  = Color(0xFF1E2420);
-const Color colorInkText    = Color(0xFF111827);
-const Color colorStoneMuted = Color(0xFF6E756F);
-const Color colorSlate      = Color(0xFF4B5563);
+/// Text — Black and Deep Dark Green-Black ONLY
+const Color colorStoneText  = Color(0xFF111811);
+const Color colorInkText    = Color(0xFF0A140A);
+const Color colorStoneMuted = Color(0xFF5A705A);
+const Color colorSlate      = Color(0xFF37474F);
 
-/// Status — Mesh Active
-const Color colorMeshActive    = Color(0xFF047857);
-const Color colorMeshActiveBg  = Color(0xFFECFDF5);
-const Color colorMeshBorder    = Color(0xFFA7F3D0);
+/// Status — Mesh Active (Green)
+const Color colorMeshActive    = Color(0xFF2E7D32);
+const Color colorMeshActiveBg  = Color(0xFFE8F5E9);
+const Color colorMeshBorder    = Color(0xFFA5D6A7);
 
-/// Status — Local AI Edge
-const Color colorAiEdge        = Color(0xFF4338CA);
-const Color colorAiEdgeBg      = Color(0xFFEEF2FF);
-const Color colorAiEdgeBorder  = Color(0xFFC7D2FE);
+/// Status — Local AI Edge (Deep Forest Green, No Purple)
+const Color colorAiEdge        = Color(0xFF1B5E20);
+const Color colorAiEdgeBg      = Color(0xFFE8F5E9);
+const Color colorAiEdgeBorder  = Color(0xFFA5D6A7);
 
-/// Status — Critical Field Alert
-const Color colorCritical       = Color(0xFFB91C1C);
-const Color colorCriticalBg     = Color(0xFFFEE2E2);
-const Color colorCriticalBorder = Color(0xFFFCA5A5);
+/// Status — Critical Field Alert (Red)
+const Color colorCritical       = Color(0xFFD32F2F);
+const Color colorCriticalBg     = Color(0xFFFFEBEE);
+const Color colorCriticalBorder = Color(0xFFEF9A9A);
 
-/// Status — Warning
-const Color colorWarning       = Color(0xFFD97706);
-const Color colorWarningBg     = Color(0xFFFFFBEB);
-const Color colorWarningBorder = Color(0xFFFCD34D);
+/// Status — Warning (Yellow)
+const Color colorWarning       = Color(0xFFFFC107);
+const Color colorWarningBg     = Color(0xFFFFF8E1);
+const Color colorWarningBorder = Color(0xFFFFD54F);
 
 // ─────────────────────────────────────────
 // SPACING & RADII

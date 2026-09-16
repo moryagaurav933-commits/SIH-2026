@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../db/delta_sync.dart';
+import '../../services/api_config.dart';
 
 /// Farmer Profile, Plots & Sync Dashboard Screen (Features 5 & 7).
 /// Manages farm plots, local SQLCipher records, QR identity, and Merkle tree differential sync.
@@ -19,12 +20,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _triggerSync() async {
     setState(() {
       _isSyncing = true;
-      _syncStatusText = 'मेश व सर्वर से डिफरेंशियल सिंक जारी...';
+      _syncStatusText = 'स्थानीय मेश व सर्वर डिफरेंशियल सिंक जारी...';
     });
 
     await Future.delayed(const Duration(milliseconds: 1500));
     await _deltaSync.sync(
-      baseUrl: 'http://localhost:8000',
+      baseUrl: ApiConfig.baseUrl.replaceAll('/api/v1', ''),
       authToken: 'demo-bearer-token',
       deviceId: 'krishi-node-01',
       localData: {},

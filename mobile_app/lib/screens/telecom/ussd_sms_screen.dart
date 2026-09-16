@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'dart:math';
+import '../../utils/design_tokens.dart';
 
 /// Interactive 2G Rural Telecom Simulator (USSD & SMS Gateway)
+/// Runs 100% on-device with zero backend server dependencies.
 /// Allows farmers and testing officers to dial *123# and send SMS queries.
 class UssdSmsScreen extends StatefulWidget {
   const UssdSmsScreen({super.key});
@@ -13,15 +13,14 @@ class UssdSmsScreen extends StatefulWidget {
 
 class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000/api/v1/telecom'));
 
   // USSD State
   String _dialedNumber = '*123#';
   bool _isInUssdSession = false;
-  String _ussdSessionId = '';
   String _currentUssdScreenText = '';
   final TextEditingController _ussdInputController = TextEditingController();
   bool _isUssdLoading = false;
+  int _ussdMenuStep = 0; // 0: Main, 1: Disease, 2: Mandi, 3: Weather, 4: Scheme
 
   // SMS State
   final TextEditingController _smsRecipientController = TextEditingController(text: '56161');
@@ -33,6 +32,13 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Initial simulated carrier welcome SMS
+    _smsChatHistory.add({
+      'isUser': false,
+      'text': 'कृषि-सारथी सेवा केंद्र (56161): फसल सलाह हेतु CROP [फसल], मंडी भाव हेतु MANDI [फसल] लिखकर भेजें।',
+      'time': '10:00 AM',
+    });
   }
 
   @override
@@ -62,34 +68,28 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
     if (_dialedNumber.isEmpty) return;
     setState(() {
       _isUssdLoading = true;
-      _ussdSessionId = 'sess-${Random().nextInt(999999)}';
     });
 
-    try {
-      final response = await _dio.post('/ussd/session', data: {
-        'session_id': _ussdSessionId,
-        'msisdn': '9876543210',
-        'user_input': _dialedNumber,
-        'service_code': '*123#',
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    if (_dialedNumber == '*123#' || _dialedNumber.startsWith('*123')) {
+      setState(() {
+        _isInUssdSession = true;
+        _isUssdLoading = false;
+        _ussdMenuStep = 0;
+        _currentUssdScreenText =
+            '🌱 कृषि-सारथी टेलीकॉम सेवा (*123#)\n'
+            '1. फसल रोग व उपचार\n'
+            '2. लाइव मंडी भाव\n'
+            '3. मौसम अलर्ट (लखनऊ)\n'
+            '4. पीएम किसान योजना\n'
+            '0. बाहर निकलें';
       });
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        setState(() {
-          _isInUssdSession = true;
-          _currentUssdScreenText = data['response']?.toString().replaceFirst('CON ', '').replaceFirst('END ', '') ?? '';
-          _isUssdLoading = false;
-        });
-
-        if (data['action'] == 'END') {
-          _showUssdEndDialog(_currentUssdScreenText);
-        }
-      }
-    } catch (e) {
+    } else {
       setState(() {
         _isUssdLoading = false;
         _isInUssdSession = true;
-        _currentUssdScreenText = '🌱 कृषि-सारथी टेलीकॉम सेवा (*123#)\n1. फसल रोग व उपचार\n2. लाइव मंडी भाव\n3. मौसम अलर्ट\n4. खाद QR जांच';
+        _currentUssdScreenText = 'गलत USSD कोड।\nकृपया *123# डायल करें।\n\n0. बाहर निकलें';
       });
     }
   }
@@ -103,35 +103,97 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
       _isUssdLoading = true;
     });
 
-    try {
-      final response = await _dio.post('/ussd/session', data: {
-        'session_id': _ussdSessionId,
-        'msisdn': '9876543210',
-        'user_input': input,
-        'service_code': '*123#',
-      });
+    await Future.delayed(const Duration(milliseconds: 300));
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final isEnd = data['action'] == 'END';
-        final text = data['response']?.toString().replaceFirst('CON ', '').replaceFirst('END ', '') ?? '';
+    setState(() {
+      _isUssdLoading = false;
 
-        setState(() {
-          _currentUssdScreenText = text;
-          _isUssdLoading = false;
-        });
-
-        if (isEnd) {
-          _showUssdEndDialog(text);
+      if (_ussdMenuStep == 0) {
+        switch (input) {
+          case '1':
+            _ussdMenuStep = 1;
+            _currentUssdScreenText =
+                '🌾 फसल रोग चयन:\n'
+                '1. गेहूं पीला रतुआ (Yellow Rust)\n'
+                '2. धान का झुलसा (Paddy Blast)\n'
+                '3. आलू अगेती/पछेती झुलसा\n'
+                '0. मुख्य मेन्यू';
+            break;
+          case '2':
+            _currentUssdScreenText =
+                '💰 मंडी भाव (लखनऊ मंडी):\n'
+                '• गेहूं: ₹2,550/क्विंटल (📈 +2.4%)\n'
+                '• धान: ₹4,100/क्विंटल\n'
+                '• सरसों: ₹5,450/क्विंटल\n'
+                '• आलू: ₹1,300/क्विंटल\n'
+                'कृषि-सारथी सेवा समाप्त।';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '3':
+            _currentUssdScreenText =
+                '🌤️ मौसम अलर्ट (लखनऊ):\n'
+                'तापमान: 31°C • नमी: 72%\n'
+                'अगले 48 घंटे: हल्की वर्षा की संभावना।\n'
+                'सलाह: जल निकासी नाली साफ रखें।\n'
+                'कृषि-सारथी सेवा समाप्त।';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '4':
+            _currentUssdScreenText =
+                '🏛️ पीएम किसान सम्मान निधि:\n'
+                'पात्र किसानों को ₹6,000/वर्ष (3 किस्तें)।\n'
+                'ई-केवाईसी अनिवार्य है।\n'
+                'हेल्पलाइन: 155261\n'
+                'कृषि-सारथी सेवा समाप्त।';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '0':
+            _currentUssdScreenText = 'सेवा समाप्त। कृषि-सारथी सदैव आपके साथ है।';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          default:
+            _currentUssdScreenText = 'अमान्य विकल्प। कृपया 1 से 4 या 0 दर्ज करें।';
+            break;
+        }
+      } else if (_ussdMenuStep == 1) {
+        switch (input) {
+          case '1':
+            _currentUssdScreenText =
+                '🌾 गेहूं पीला रतुआ उपचार:\n'
+                'प्रोपिकोनाज़ोल 25% EC @ 1ml/L पानी (200ml/एकड़) छिड़कें। यूरिया रोकें।\n'
+                'स्रोतः ICAR-IIWBR';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '2':
+            _currentUssdScreenText =
+                '🌾 धान झुलसा उपचार:\n'
+                'ट्राइसाइक्लाज़ोल 75% WP @ 0.6g/L पानी छिड़कें। खेत से पानी निकालें।\n'
+                'स्रोतः ICAR-NRRI';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '3':
+            _currentUssdScreenText =
+                '🥔 आलू अंगमारी उपचार:\n'
+                'साइमोक्सानिल 8% + मैंकोजेब 64% WP @ 3g/L छिड़कें।\n'
+                'स्रोतः ICAR-CPRI';
+            _showUssdEndDialog(_currentUssdScreenText);
+            break;
+          case '0':
+            _ussdMenuStep = 0;
+            _currentUssdScreenText =
+                '🌱 कृषि-सारथी टेलीकॉम सेवा (*123#)\n'
+                '1. फसल रोग व उपचार\n'
+                '2. लाइव मंडी भाव\n'
+                '3. मौसम अलर्ट (लखनऊ)\n'
+                '4. पीएम किसान योजना\n'
+                '0. बाहर निकलें';
+            break;
+          default:
+            _currentUssdScreenText = 'अमान्य विकल्प। 1, 2, 3 या 0 दर्ज करें।';
+            break;
         }
       }
-    } catch (_) {
-      setState(() {
-        _isUssdLoading = false;
-        _currentUssdScreenText = 'सेवा समाप्त। पुनः *123# डायल करें।';
-      });
-      _showUssdEndDialog(_currentUssdScreenText);
-    }
+    });
   }
 
   void _showUssdEndDialog(String message) {
@@ -139,18 +201,21 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E30),
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.cell_tower, color: Color(0xFF4CAF50)),
+            Icon(Icons.cell_tower, color: colorPrimary),
             SizedBox(width: 8),
-            Text('टेलीकॉम USSD संदेश', style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              'टेलीकॉम USSD संदेश',
+              style: TextStyle(color: colorStoneText, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Text(
           message,
-          style: const TextStyle(color: Colors.white, height: 1.4, fontSize: 14),
+          style: const TextStyle(color: colorStoneText, height: 1.4, fontSize: 14),
         ),
         actions: [
           TextButton(
@@ -159,9 +224,10 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
               setState(() {
                 _isInUssdSession = false;
                 _currentUssdScreenText = '';
+                _ussdMenuStep = 0;
               });
             },
-            child: const Text('ठीक है (OK)', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+            child: const Text('ठीक है (OK)', style: TextStyle(color: colorPrimary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -182,30 +248,27 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
     });
     _smsBodyController.clear();
 
-    try {
-      final response = await _dio.post('/sms/inbound', data: {
-        'sender': '9876543210',
-        'body': text,
-      });
+    await Future.delayed(const Duration(milliseconds: 500));
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final reply = data['reply_dispatched']?['message'] ?? 'SMS प्राप्त हुआ।';
-        setState(() {
-          _isSmsSending = false;
-          _smsChatHistory.add({
-            'isUser': false,
-            'text': reply,
-            'time': 'अभी',
-          });
-        });
-      }
-    } catch (_) {
+    final q = text.toUpperCase();
+    String reply = 'कृषि-सारथी SMS सेवा: आपका संदेश प्राप्त हुआ। सहायता हेतु CROP [फसल] या MANDI [फसल] भेजें।';
+
+    if (q.contains('WHEAT') || q.contains('RUST') || q.contains('गेहूं')) {
+      reply = 'कृषि-सारथी सलाह: गेहूं में पीला रतुआ हेतु प्रोपिकोनाज़ोल 25% EC (टिल्ट) @ 1ml/L पानी में मिलाकर तुरंत छिड़कें। यूरिया कम करें। (ICAR)';
+    } else if (q.contains('MANDI') || q.contains('भाव') || q.contains('PRICE')) {
+      reply = 'कृषि-सारथी मंडी भाव: गेहूं ₹2,550/क्विं, धान ₹4,100/क्विं, सरसों ₹5,450/क्विं, आलू ₹1,300/क्विं (लखनऊ मंडी लाइव)';
+    } else if (q.contains('WEATHER') || q.contains('मौसम')) {
+      reply = 'मौसम चेतावनी (लखनऊ): तापमान 31C, 48 घंटों में हल्की से मध्यम वर्षा संभव। जल निकासी नाली साफ रखें।';
+    } else if (q.contains('KISAN') || q.contains('SCHEME') || q.contains('योजना')) {
+      reply = 'पीएम-किसान: ₹6,000 वार्षिक सहायता। स्थिति जांचने हेतु pmkisan.gov.in देखें या 155261 पर कॉल करें।';
+    }
+
+    if (mounted) {
       setState(() {
         _isSmsSending = false;
         _smsChatHistory.add({
           'isUser': false,
-          'text': 'कृषि-सारथी: गेहूं पीला रतुआ हेतु प्रोपिकोनाज़ोल 25% EC @ 1ml/L पानी का छिड़काव करें।',
+          'text': reply,
           'time': 'अभी',
         });
       });
@@ -215,26 +278,37 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
-      appBar: AppBar(
-        title: const Text('टेलीकॉम गेटवे (2G USSD & SMS)'),
-        backgroundColor: const Color(0xFF1A1A2E),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF4CAF50),
-          labelColor: const Color(0xFF4CAF50),
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.dialpad), text: '2G USSD (*123#)'),
-            Tab(icon: Icon(Icons.sms), text: 'SMS सहायता (56161)'),
-          ],
-        ),
+      backgroundColor: colorBg,
+      appBar: buildKrishiAppBar(
+        context: context,
+        title: '2G टेलीकॉम गेटवे',
+        subtitle: 'RURAL 2G USSD (*123#) & SMS GATEWAY',
+        emoji: '📡',
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildUssdKeypadTab(),
-          _buildSmsTab(),
+          Container(
+            color: colorCard,
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: colorPrimary,
+              labelColor: colorPrimary,
+              unselectedLabelColor: colorStoneMuted,
+              tabs: const [
+                Tab(icon: Icon(Icons.dialpad), text: '2G USSD (*123#)'),
+                Tab(icon: Icon(Icons.sms), text: 'SMS सहायता (56161)'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildUssdKeypadTab(),
+                _buildSmsTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -244,15 +318,20 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
     return Center(
       child: SingleChildScrollView(
         child: Container(
-          width: 320,
+          width: 330,
           margin: const EdgeInsets.symmetric(vertical: 16),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFF2E7D32), width: 2),
+            color: const Color(0xFF0F1E14), // Deep forest phone body
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: colorPrimary, width: 2),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 4),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 20,
+                spreadRadius: 2,
+                offset: const Offset(0, 8),
+              ),
             ],
           ),
           child: Column(
@@ -260,13 +339,13 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
             children: [
               // Screen container (Feature phone LCD display)
               Container(
-                height: 140,
+                height: 150,
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2C3E2D),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.5), width: 1.5),
+                  color: const Color(0xFF1B3820),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.6), width: 1.5),
                 ),
                 child: _isInUssdSession ? _buildActiveUssdScreen() : _buildIdleDialScreen(),
               ),
@@ -306,7 +385,7 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
           ),
         ),
         const Spacer(),
-        const Text('*123# डायल कर कृषि सेवा शुरू करें', style: TextStyle(color: Color(0xFF81C784), fontSize: 9)),
+        const Text('*123# डायल कर ऑफलाइन कृषि सेवा शुरू करें', style: TextStyle(color: Color(0xFF81C784), fontSize: 9.5)),
       ],
     );
   }
@@ -319,7 +398,7 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
           child: SingleChildScrollView(
             child: Text(
               _currentUssdScreenText,
-              style: const TextStyle(color: Color(0xFFA5D6A7), fontSize: 11, height: 1.3, fontWeight: FontWeight.w500),
+              style: const TextStyle(color: Color(0xFFA5D6A7), fontSize: 11, height: 1.35, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -334,13 +413,14 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
                   keyboardType: TextInputType.number,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'विकल्प दर्ज करें...',
+                    hintText: 'विकल्प (उदा. 1)...',
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 10),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     filled: true,
-                    fillColor: Colors.black26,
+                    fillColor: Colors.black38,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
                   ),
+                  onSubmitted: (_) => _sendUssdResponse(),
                 ),
               ),
             ),
@@ -349,11 +429,11 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
               height: 32,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  backgroundColor: colorPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 onPressed: _isUssdLoading ? null : _sendUssdResponse,
-                child: const Text('Send', style: TextStyle(color: Colors.white, fontSize: 11)),
+                child: const Text('Send', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -378,22 +458,23 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
           children: [
             FloatingActionButton.small(
               heroTag: 'ussd_call',
-              backgroundColor: const Color(0xFF2E7D32),
+              backgroundColor: colorPrimary,
               onPressed: _startUssdSession,
               child: const Icon(Icons.call, color: Colors.white),
             ),
             IconButton(
-              icon: const Icon(Icons.backspace, color: Colors.white60),
+              icon: const Icon(Icons.backspace, color: Colors.white70),
               onPressed: _onBackspace,
             ),
             FloatingActionButton.small(
               heroTag: 'ussd_end',
-              backgroundColor: Colors.redAccent,
+              backgroundColor: colorEarthAlert,
               onPressed: () {
                 setState(() {
                   _isInUssdSession = false;
                   _dialedNumber = '';
                   _currentUssdScreenText = '';
+                  _ussdMenuStep = 0;
                 });
               },
               child: const Icon(Icons.call_end, color: Colors.white),
@@ -414,10 +495,10 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
                     onTap: () => _onKeyPress(k),
                     borderRadius: BorderRadius.circular(30),
                     child: Container(
-                      width: 58,
+                      width: 60,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF252538),
+                        color: const Color(0xFF1E3324),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white12),
                       ),
@@ -440,50 +521,67 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
       children: [
         // Top banner
         Container(
-          padding: const EdgeInsets.all(12),
-          color: const Color(0xFF1E1E30),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: colorPrimarySoft,
           child: const Row(
             children: [
-              Icon(Icons.sms_outlined, color: Color(0xFF4CAF50)),
+              Icon(Icons.sms_rounded, color: colorPrimary, size: 20),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '2G फीचर फोन SMS सेवा: 56161 पर CROP, MANDI या WEATHER लिखकर भेजें।',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  'ऑफ़लाइन ग्रामीण SMS गेटवे • टोल-फ्री 56161 (No Internet Required)',
+                  style: TextStyle(color: colorPrimaryDeep, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
         ),
 
-        // Chat list
+        // Chat messages
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: _smsChatHistory.length,
-            itemBuilder: (ctx, idx) {
-              final msg = _smsChatHistory[idx];
+            itemBuilder: (ctx, i) {
+              final msg = _smsChatHistory[i];
               final isUser = msg['isUser'] as bool;
               return Align(
                 alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                   decoration: BoxDecoration(
-                    color: isUser ? const Color(0xFF2E7D32) : const Color(0xFF252538),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isUser ? Colors.lightGreenAccent.withValues(alpha: 0.3) : Colors.white12),
+                    color: isUser ? colorPrimary : colorCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: isUser ? null : Border.all(color: colorHairline),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isUser ? 'आप (SMS to 56161)' : 'कृषि-सारथी SMS गेटवे (DLT-10029)',
-                        style: TextStyle(color: isUser ? Colors.lightGreenAccent : Colors.white60, fontSize: 10, fontWeight: FontWeight.bold),
+                        msg['text'] as String,
+                        style: TextStyle(
+                          color: isUser ? Colors.white : colorStoneText,
+                          fontSize: 13.5,
+                          height: 1.35,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      Text(msg['text'] as String, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3)),
+                      Text(
+                        msg['time'] as String,
+                        style: TextStyle(
+                          color: isUser ? Colors.white70 : colorStoneMuted,
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -492,34 +590,42 @@ class _UssdSmsScreenState extends State<UssdSmsScreen> with SingleTickerProvider
           ),
         ),
 
-        // Input bar
+        // Message input row
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: const Color(0xFF161622),
-          child: SafeArea(
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _smsBodyController,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'उदा: CROP WHEAT, MANDI INDORE...',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                      filled: true,
-                      fillColor: const Color(0xFF252538),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+          padding: const EdgeInsets.all(12),
+          decoration: const BoxDecoration(
+            color: colorCard,
+            border: Border(top: BorderSide(color: colorHairline)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _smsBodyController,
+                  style: const TextStyle(color: colorStoneText, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'उदा. CROP WHEAT, MANDI RICE...',
+                    hintStyle: const TextStyle(color: colorStoneMuted, fontSize: 13),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    filled: true,
+                    fillColor: colorSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: colorHairline),
                     ),
                   ),
+                  onSubmitted: (_) => _sendSms(),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: _isSmsSending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50))) : const Icon(Icons.send, color: Color(0xFF4CAF50)),
-                  onPressed: _isSmsSending ? null : _sendSms,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                style: IconButton.styleFrom(backgroundColor: colorPrimary),
+                icon: _isSmsSending
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                onPressed: _isSmsSending ? null : _sendSms,
+              ),
+            ],
           ),
         ),
       ],

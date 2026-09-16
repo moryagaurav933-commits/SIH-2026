@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
     # ─── External APIs ───
+    WEATHER_API_KEY: str = ""
+    OPENWEATHER_API_KEY: str = ""
     IMD_API_KEY: str = ""
     IMD_API_URL: str = "https://api.imd.gov.in/v1"
     AGMARKNET_API_KEY: str = ""
