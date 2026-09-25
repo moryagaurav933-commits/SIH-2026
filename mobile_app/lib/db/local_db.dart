@@ -18,8 +18,6 @@ class LocalDB {
     'mandi_prices': [],
     'mesh_packets': [],
     'insurance_claims': [],
-    'fertilizer_cache': [],
-    'soil_tests': [],
     'sync_log': [],
   };
 
@@ -112,14 +110,6 @@ class LocalDB {
         .toList();
   }
 
-  /// Save a soil test result.
-  Future<String> saveSoilTest(Map<String, dynamic> result) async {
-    final id = _generateId();
-    result['id'] = id;
-    result['tested_at'] = DateTime.now().toIso8601String();
-    _tables['soil_tests']!.add(result);
-    return id;
-  }
 
   /// Save an insurance claim locally.
   Future<String> saveInsuranceClaim(Map<String, dynamic> claim) async {

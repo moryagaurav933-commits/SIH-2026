@@ -28,5 +28,22 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+
+	<!-- Privacy Descriptions for Camera, Microphone, and Location -->
+	<key>NSCameraUsageDescription</key>
+	<string>Krishi-Saarthi requires camera access to capture leaf photos for AI crop disease diagnosis and insurance evidence verification.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Krishi-Saarthi requires microphone access for voice copilot and speech interaction in Indian languages.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Krishi-Saarthi uses your location to fetch hyperlocal weather alerts, nearest mandi commodity prices, and geo-tagged insurance claims.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Krishi-Saarthi uses location for real-time crop disease hotspot telemetry and localized emergency weather broadcasts.</string>
+
+	<!-- App Transport Security for local development and backend sync -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

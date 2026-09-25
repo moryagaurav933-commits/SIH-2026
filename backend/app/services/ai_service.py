@@ -205,7 +205,7 @@ class AIService:
                     "4. जैविक विकल्प: हमेशा रासायनिक उपाय के साथ एक प्रामाणिक जैविक या देसी उपाय (जैसे नीम का तेल, ट्राइकोडर्मा) भी सुझाएं।\n"
                     "5. सावधानियां: मौसम (बारिश, धूप) और सुरक्षा सावधानियों (मास्क पहनना) का जिक्र करें।\n"
                     "6. उर्वरक प्रबंधन: NPK की अनुशंसित मात्रा (जैसे 120:60:40) के आधार पर ही यूरिया, डीएपी की सलाह दें।\n"
-                    "7. उत्तर संक्षिप्त और बिंदुवार (Bullet points) रखें। "
+                    "7. उत्तर विस्तृत, संपूर्ण, स्पष्ट और व्यावहारिक रखें। "
                     "भाषा: किसान के प्रश्न के अनुसार " + ("सरल और सम्मानजनक हिंदी" if language == "hi" else "clear English") + " में उत्तर दें।"
                 )
 
@@ -213,18 +213,17 @@ class AIService:
                     {"role": "user", "parts": [{"text": system_prompt + "\n\nकिसान का सवाल: " + message}]}
                 ]
 
-                # Gemini 2.5 Flash for state-of-the-art agricultural reasoning
+                # Gemini 2.5 Flash for state-of-the-art agricultural reasoning (Full Intent & Unlimited Tokens)
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                 payload = {
                     "contents": contents,
                     "generationConfig": {
                         "temperature": 0.3,
-                        "maxOutputTokens": 800,
-                        "topP": 0.85
+                        "topP": 0.95
                     }
                 }
 
-                async with httpx.AsyncClient(timeout=20.0) as client:
+                async with httpx.AsyncClient(timeout=60.0) as client:
                     resp = await client.post(url, json=payload)
                     if resp.status_code == 200:
                         data = resp.json()
@@ -252,7 +251,7 @@ class AIService:
             logger.info("Using Local Quantized LLM for offline chat fallback.")
             prompt = f"<|system|>\nYou are a helpful agricultural assistant. Answer accurately based on ICAR guidelines.\n<|user|>\n{message}\n<|assistant|>\n"
             try:
-                response = local_llm(prompt, max_tokens=256, stop=["<|user|>"], echo=False)
+                response = local_llm(prompt, max_tokens=2048, stop=["<|user|>"], echo=False)
                 reply_text = response["choices"][0]["text"].strip()
                 if reply_text:
                     return {
@@ -332,7 +331,7 @@ class AIService:
                     "Do not recommend banned pesticides."
                 )
 
-                async with httpx.AsyncClient(timeout=25.0) as client:
+                async with httpx.AsyncClient(timeout=60.0) as client:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                     payload = {
                         "contents": [

@@ -132,6 +132,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'वर्तमान स्थिति: $_aiStatus',
                     style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B3520),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.5)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.verified, size: 14, color: Color(0xFF69F0AE)),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'सुरक्षित जेमिनी 2.5 फ़्लैश कुंजी पहले से सक्रिय है (Pre-configured & Secured for Zip Sharing)।',
+                            style: TextStyle(fontSize: 10.5, color: Color(0xFFC8E6C9), fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _apiKeyController,

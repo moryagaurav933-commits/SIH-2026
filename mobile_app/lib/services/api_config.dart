@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'dart:io' show Platform;
 
 /// Global API & Network Configuration for Krishi-Saarthi.
 /// Ensures mobile devices, desktop runners, web browsers, and emulators
@@ -19,12 +18,11 @@ class ApiConfig {
     if (kIsWeb) {
       return 'http://localhost:8000/api/v1';
     }
-    // Mobile Emulators & Desktop
-    try {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2:8000/api/v1';
-      }
-    } catch (_) {}
+    // Android Emulator
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api/v1';
+    }
+    // iOS Simulator, macOS, Windows, Linux
     return 'http://localhost:8000/api/v1';
   }
 
@@ -32,6 +30,7 @@ class ApiConfig {
   static String get aiBaseUrl => '$baseUrl/ai';
   static String get chatUrl => '$baseUrl/ai/chat';
   static String get diagnoseUrl => '$baseUrl/ai/diagnose';
+  static String get diagnoseEndpoint => '$baseUrl/diagnose';
   static String get keyStatusUrl => '$baseUrl/ai/key-status';
   static String get configureKeyUrl => '$baseUrl/ai/configure-key';
 
@@ -39,6 +38,8 @@ class ApiConfig {
   static String get diagnosesUrl => '$baseUrl/diagnoses/';
   static String get weatherForecastUrl => '$baseUrl/weather/forecast';
   static String get mandiPricesUrl => '$baseUrl/mandi/prices';
+  static String get mandisUrl => '$baseUrl/mandi/mandis';
+  static String get closestMandiUrl => '$baseUrl/mandi/closest';
   static String get dashboardStatsUrl => '$baseUrl/dashboard/stats';
   static String get fertilizerVerifyUrl => '$baseUrl/fertilizer/verify';
   static String get insuranceClaimsUrl => '$baseUrl/insurance/claims';

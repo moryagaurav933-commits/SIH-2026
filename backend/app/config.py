@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Krishi-Saarthi Backend Configuration
 Pydantic Settings for all environment variables
@@ -14,8 +15,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # ─── Database ───
-    DATABASE_URL: str = "postgresql+asyncpg://krishi_admin:krishi_secure_2026@localhost:5432/krishi_saarthi_master"
-    DATABASE_URL_SYNC: str = "postgresql+psycopg2://krishi_admin:krishi_secure_2026@localhost:5432/krishi_saarthi_master"
+    DATABASE_URL: str = "postgresql+asyncpg://krishi_admin:krishi_secure_2026@localhost:5433/krishi_saarthi_master"
+    DATABASE_URL_SYNC: str = "postgresql+psycopg2://krishi_admin:krishi_secure_2026@localhost:5433/krishi_saarthi_master"
 
     # ─── Redis ───
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -34,9 +35,9 @@ class Settings(BaseSettings):
     AGMARKNET_API_URL: str = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
     OGD_API_KEY: str = ""
 
-    # ─── AI & Basemaps (Protected Free-Tier Quota Guards) ───
+    # ─── AI & Basemaps ───
     GEMINI_API_KEY: str = ""
-    GEMINI_RATE_LIMIT_PER_HOUR: int = 15
+    GEMINI_RATE_LIMIT_PER_HOUR: int = 999999
     CARTO_API_KEY: str = ""
     CARTO_RATE_LIMIT_PER_HOUR: int = 15
 
@@ -64,7 +65,10 @@ class Settings(BaseSettings):
 
     class Config:
         # Check both local and parent directory for .env files
-        env_file = (".env", "backend/.env", "../.env")
+        _this_dir = Path(__file__).resolve().parent
+        _backend_env = _this_dir.parent / ".env"
+        _root_env = _this_dir.parent.parent / ".env"
+        env_file = (str(_backend_env), str(_root_env), ".env", "backend/.env", "../.env")
         env_file_encoding = "utf-8"
         case_sensitive = True
 

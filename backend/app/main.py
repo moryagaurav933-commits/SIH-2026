@@ -38,6 +38,16 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("database_tables_initialized")
+
+        # Ensure Disease Knowledge Base is populated
+        try:
+            from app.db.base import AsyncSessionLocal
+            from scripts.seed_disease_kb import seed_disease_database
+            async with AsyncSessionLocal() as session:
+                await seed_disease_database(session)
+        except Exception as seed_err:
+            logger.warning("disease_db_seed_notice", detail=str(seed_err))
+
     except Exception as e:
         logger.error("database_init_error", error=str(e))
     yield
@@ -103,6 +113,49 @@ async def krishi_exception_handler(request: Request, exc: KrishiSaarthiException
 # ─── Routes ───
 app.include_router(api_router, prefix="/api/v1")
 
+# ─── Core AI Disease Diagnosis Route (POST /api/diagnose) ───
+from app.api.v1.endpoints.diagnoses import process_leaf_diagnosis
+from app.db.session import get_db
+from app.api.deps import get_optional_farmer
+from app.models.farmer import Farmer
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import UploadFile, File, Form, Depends
+from typing import Optional
+
+@app.post("/api/diagnose", tags=["Crop AI Diagnosis"])
+@app.post("/api/v1/diagnose", tags=["Crop AI Diagnosis"])
+async def api_diagnose_endpoint(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None),
+    image_base64: Optional[str] = Form(None),
+    crop_type: Optional[str] = Form(None),
+    crop_hint: Optional[str] = Form(None),
+    gps_lat: Optional[float] = Form(None),
+    gps_lon: Optional[float] = Form(None),
+    district_code: Optional[str] = Form(None),
+    farmer: Optional[Farmer] = Depends(get_optional_farmer),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Core AI crop disease diagnosis endpoint: Accepts leaf image upload,
+    runs PyTorch MobileNetV3 inference, and queries PostgreSQL for full disease profile.
+    """
+    return await process_leaf_diagnosis(
+        request=request,
+        file=file,
+        image=image,
+        image_base64=image_base64,
+        crop_type=crop_type,
+        crop_hint=crop_hint,
+        gps_lat=gps_lat,
+        gps_lon=gps_lon,
+        district_code=district_code,
+        farmer=farmer,
+        db=db,
+    )
+
+
 
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
@@ -151,19 +204,21 @@ async def health_check():
     """System health check endpoint verifying PostgreSQL, Redis, and MinIO live."""
     services = {}
 
-    # 1. PostgreSQL check
+    # 1. Database check (PostgreSQL or SQLite auto-fallback)
+    is_sqlite = "sqlite" in str(engine.url)
     try:
         async with engine.connect() as conn:
             res = await conn.execute(text("SELECT count(*) FROM farmers"))
             farmers_cnt = res.scalar()
-            services["postgresql"] = {
+            services["database"] = {
                 "status": "connected",
-                "engine": "PostgreSQL 16",
-                "port": 5433,
+                "engine": "SQLite 3 (Local Auto-Fallback)" if is_sqlite else "PostgreSQL 16",
                 "farmers_seeded": farmers_cnt,
             }
+            services["postgresql"] = services["database"]
     except Exception as e:
-        services["postgresql"] = {"status": "error", "error": str(e)}
+        services["database"] = {"status": "error", "error": str(e)}
+        services["postgresql"] = services["database"]
 
     # 2. Redis check
     try:

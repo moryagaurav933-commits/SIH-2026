@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/weather_mandi_service.dart';
 import '../db/local_db.dart';
@@ -17,6 +16,8 @@ class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService;
   final LocalDB _db;
 
+  LocalDB get db => _db;
+
   Map<String, dynamic>? _weather;
   String _locationLabel = 'Sonipat, Haryana';
   double? _currentLat;
@@ -30,7 +31,7 @@ class WeatherProvider extends ChangeNotifier {
   WeatherProvider({WeatherService? weatherService, LocalDB? db})
       : _db = db ?? LocalDB(),
         _weatherService = weatherService ?? WeatherService(db ?? LocalDB()) {
-    initWeather();
+    Future.microtask(() => initWeather());
   }
 
   WeatherService get weatherService => _weatherService;

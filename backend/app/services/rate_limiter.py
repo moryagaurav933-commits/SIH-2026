@@ -115,7 +115,7 @@ class SlidingWindowRateLimiter:
 # Singleton instances for Gemini AI and CARTO Basemaps
 gemini_limiter = SlidingWindowRateLimiter(
     name="Google Gemini 2.5 Flash AI",
-    limit=getattr(settings, "GEMINI_RATE_LIMIT_PER_HOUR", 15),
+    limit=getattr(settings, "GEMINI_RATE_LIMIT_PER_HOUR", 999999),
     window_seconds=3600
 )
 

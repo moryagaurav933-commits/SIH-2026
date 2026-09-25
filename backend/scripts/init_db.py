@@ -7,14 +7,11 @@ import hashlib
 import uuid
 from datetime import datetime, date, timedelta, timezone
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db.base import Base
+from app.db.base import Base, engine, AsyncSessionLocal
 from app.config import settings
 from app.models.farmer import Farmer, FarmPlot
 from app.models.diagnosis import CropDiagnosis, SyncStatus
@@ -23,35 +20,28 @@ from app.models.weather import WeatherCache
 from app.models.fertilizer import FertilizerRegistry
 from app.models.disease_telemetry import DiseaseTelemetry
 from app.models.insurance import InsuranceClaim
+from scripts.seed_disease_kb import seed_disease_database
 
 
 async def init_and_seed():
-    print(f"[+] Connecting to database: {settings.DATABASE_URL}")
-    
-    engine_kwargs = {"echo": False}
-    if "sqlite" in settings.DATABASE_URL:
-        engine_kwargs["connect_args"] = {"check_same_thread": False}
-    else:
-        engine_kwargs.update({
-            "pool_size": 10,
-            "max_overflow": 5,
-        })
-
-    engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+    print(f"[+] Connecting to database engine: {engine.url}")
     
     async with engine.begin() as conn:
         print("[+] Creating all tables...")
         await conn.run_sync(Base.metadata.create_all)
         print("[+] Tables initialized successfully!")
 
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with AsyncSessionLocal() as session:
+        # 0. Always verify & seed the Disease Knowledge Base (21 classes, 4 crops, child tables)
+        print("[+] Checking and seeding Disease Knowledge Base...")
+        await seed_disease_database(session)
 
-    async with async_session() as session:
-        # Check if already seeded
+        # Check if demo farmers already seeded
         from sqlalchemy import select
         existing_farmers = await session.execute(select(Farmer))
         if existing_farmers.scalars().first():
-            print("[*] Database already contains data. Skipping seed.")
+            print("[*] Database already contains demo farmer data. Skipping farmer seed.")
+            await engine.dispose()
             return
 
         print("[+] Seeding demo data for SIH 2026...")

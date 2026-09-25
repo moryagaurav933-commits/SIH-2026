@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'api_config.dart';
 import 'llm_service.dart';
 
 /// Computer Vision service for crop disease detection using TFLite/ONNX models.
@@ -95,6 +97,91 @@ class CVService {
     // Default minimal test leaf payload if testing from simulated camera
     base64Str ??= 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
+    // 1. Primary: Direct high-performance Backend PyTorch + PostgreSQL diagnosis endpoint
+    try {
+      final uri = Uri.parse(ApiConfig.diagnoseEndpoint);
+      final request = http.MultipartRequest('POST', uri);
+      if (imageSource is Uint8List) {
+        request.files.add(http.MultipartFile.fromBytes('file', imageSource, filename: 'leaf.jpg'));
+      } else if (imageSource is File && await imageSource.exists()) {
+        request.files.add(await http.MultipartFile.fromPath('file', imageSource.path));
+      } else if (base64Str.isNotEmpty) {
+        final decoded = base64Decode(base64Str);
+        request.files.add(http.MultipartFile.fromBytes('file', decoded, filename: 'leaf.jpg'));
+      }
+      if (cropHint != null && cropHint.isNotEmpty) {
+        request.fields['crop_hint'] = cropHint;
+      }
+      if (gpsLat != null) request.fields['gps_lat'] = gpsLat.toString();
+      if (gpsLon != null) request.fields['gps_lon'] = gpsLon.toString();
+      if (districtCode != null) request.fields['district_code'] = districtCode;
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+                final dp = (data['disease_profile'] as Map<String, dynamic>?) ?? {};
+        final kb = (data['kb_info'] as Map<String, dynamic>?) ?? {};
+
+        final diseaseEn = data['disease_name']?.toString() ?? data['predicted_class']?.toString() ?? 'Tomato Septoria Leaf Spot';
+        final diseaseHi = data['disease_name_hi']?.toString() ?? diseaseNamesHindi[diseaseEn] ?? diseaseEn;
+        final conf = (data['confidence'] as num?)?.toDouble() ?? 0.95;
+        final crop = data['crop']?.toString() ?? cropHint ?? 'Tomato';
+        final isHealthy = data['is_healthy'] == true;
+
+        // Extract treatments
+        final treatMap = (dp['treatments'] as Map<String, dynamic>?) ?? {};
+        final cultList = (treatMap['cultural'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final chemList = (treatMap['chemical'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final bioList = (treatMap['biological'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+
+        final chemCure = chemList.isNotEmpty ? chemList.join('; ') : 'CIBRC approved fungicide';
+        final orgCure = bioList.isNotEmpty ? bioList.join('; ') : (cultList.isNotEmpty ? cultList.join('; ') : 'Neem oil or bio-control');
+        final action = dp['farmer_action']?.toString() ?? kb['immediate_action']?.toString() ?? 'Isolate affected plant parts.';
+
+        final symptomsList = (dp['symptoms'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final healthySignsList = (dp['healthy_signs'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final prevList = (dp['prevention_steps'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final condList = (dp['favorable_conditions'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+        final sourcesList = (dp['sources'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? <Map<String, dynamic>>[];
+
+        final sevStr = dp['severity']?.toString().toLowerCase() ?? 'medium';
+        final cleanSev = sevStr.contains('critical') ? 'critical' : (sevStr.contains('high') ? 'high' : (sevStr.contains('low') ? 'low' : 'medium'));
+
+        return DiagnosisResult(
+          diseaseName: diseaseEn,
+          diseaseNameHi: diseaseHi,
+          confidence: conf,
+          severity: cleanSev,
+          treatmentEn: chemCure,
+          treatmentHi: orgCure,
+          cropType: crop,
+          isHealthy: isHealthy,
+          modelVersion: data['model_version']?.toString() ?? 'PyTorch MobileNetV3 + Postgres KB',
+          pathogen: dp['scientific_name_or_pathogen']?.toString() ?? 'Pathogen',
+          chemicalCure: chemCure,
+          organicCure: orgCure,
+          immediateAction: action,
+          spotDosage: 1.5,
+          description: dp['description']?.toString() ?? '',
+          cause: dp['cause']?.toString() ?? '',
+          farmerAction: dp['farmer_action']?.toString() ?? '',
+          symptoms: symptomsList,
+          healthySigns: healthySignsList,
+          culturalTreatments: cultList,
+          chemicalTreatments: chemList,
+          biologicalTreatments: bioList,
+          preventionSteps: prevList,
+          favorableConditions: condList,
+          sources: sourcesList,
+        );
+      }
+    } catch (e) {
+      debugPrint('Direct /api/diagnose failed or timed out: . Falling back to multimodal AI / ICAR.');
+    }
+
+    // 2. Secondary Multimodal AI Fallback (Gemini / Cloud)
     try {
       final aiRes = await LLMService().diagnoseLeaf(
         base64Str,
@@ -182,6 +269,19 @@ class DiagnosisResult {
   final String immediateAction;
   final double spotDosage;
 
+  // Rich database fields from PostgreSQL seed
+  final String description;
+  final String cause;
+  final String farmerAction;
+  final List<String> symptoms;
+  final List<String> healthySigns;
+  final List<String> culturalTreatments;
+  final List<String> chemicalTreatments;
+  final List<String> biologicalTreatments;
+  final List<String> preventionSteps;
+  final List<String> favorableConditions;
+  final List<Map<String, dynamic>> sources;
+
   DiagnosisResult({
     required this.diseaseName,
     required this.diseaseNameHi,
@@ -197,6 +297,17 @@ class DiagnosisResult {
     this.organicCure = '',
     this.immediateAction = '',
     this.spotDosage = 1.5,
+    this.description = '',
+    this.cause = '',
+    this.farmerAction = '',
+    this.symptoms = const [],
+    this.healthySigns = const [],
+    this.culturalTreatments = const [],
+    this.chemicalTreatments = const [],
+    this.biologicalTreatments = const [],
+    this.preventionSteps = const [],
+    this.favorableConditions = const [],
+    this.sources = const [],
   });
 
   Map<String, dynamic> toJson() => {

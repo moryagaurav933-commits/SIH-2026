@@ -92,7 +92,7 @@ def diagnose_leaf_with_gemini(
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=60) as response:
                 resp_json = json.loads(response.read().decode("utf-8"))
                 text_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
                 return json.loads(text_content)

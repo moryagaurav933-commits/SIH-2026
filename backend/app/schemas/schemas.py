@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response validation.
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, date
 from uuid import UUID
 
@@ -147,20 +147,40 @@ class MandiPriceQuery(BaseModel):
 
 
 class MandiPriceResponse(BaseModel):
-    id: UUID
+    id: Union[UUID, str]
+    market_id: Optional[str] = None
     market_name: str
+    district: Optional[str] = None
+    state: Optional[str] = None
+    distance_km: Optional[float] = None
     crop_name: str
     crop_name_hi: Optional[str] = None
+    variety: Optional[str] = None
     price_per_quintal: float
+    modal_price: Optional[float] = None
     min_price: Optional[float] = None
     max_price: Optional[float] = None
+    arrival_quantity_quintal: Optional[float] = None
     price_trend: Optional[str] = None
     price_change_pct: Optional[float] = None
     price_date: date
-    source: str
+    source: str = "agmarknet"
 
     class Config:
         from_attributes = True
+
+
+class MandiLocationResponse(BaseModel):
+    id: str
+    name: str
+    name_hi: Optional[str] = None
+    district: str
+    state: str
+    latitude: float
+    longitude: float
+    distance_km: Optional[float] = None
+    commodities_count: int = 0
+    market_type: str = "APMC Principal Yard"
 
 
 # ─── Mesh Packet Schemas ───

@@ -11,7 +11,7 @@ class LanguageProvider extends ChangeNotifier {
   bool _isInitialized = false;
 
   LanguageProvider() {
-    _loadFromPrefs();
+    Future.microtask(() => _loadFromPrefs());
   }
 
   AppLanguage get currentLanguage => _currentLanguage;
