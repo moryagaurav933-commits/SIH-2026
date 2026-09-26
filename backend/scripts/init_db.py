@@ -22,10 +22,50 @@ from app.models.disease_telemetry import DiseaseTelemetry
 from app.models.insurance import InsuranceClaim
 from scripts.seed_disease_kb import seed_disease_database
 
+# Demo data is considered complete only when every seeded table has its rows.
+# A single marker row is not enough: an interrupted seed can leave the database
+# partially populated (e.g. farmers written but the commit failing before plots),
+# and a naive "any farmer exists" guard would then skip re-seeding forever.
+EXPECTED_DEMO_FARMERS = 3
+EXPECTED_DEMO_MANDI_PRICES = 12
+
+
+async def _demo_data_is_complete(session) -> bool:
+    from sqlalchemy import func, select
+
+    farmers = await session.execute(select(func.count()).select_from(Farmer))
+    mandi = await session.execute(select(func.count()).select_from(MandiPrice))
+    return (
+        farmers.scalar() == EXPECTED_DEMO_FARMERS
+        and mandi.scalar() == EXPECTED_DEMO_MANDI_PRICES
+    )
+
+
+async def _purge_partial_demo_data(session) -> None:
+    """Remove partially-seeded demo rows so a fresh seed can run cleanly.
+
+    Child rows are deleted before parents to respect foreign keys.
+    """
+    from sqlalchemy import delete
+
+    for model in (
+        InsuranceClaim,
+        CropDiagnosis,
+        FarmPlot,
+        DiseaseTelemetry,
+        MandiPrice,
+        WeatherCache,
+        FertilizerRegistry,
+        Farmer,
+    ):
+        await session.execute(delete(model))
+    await session.commit()
+    print("[*] Found incomplete demo data - cleared it for re-seeding.")
+
 
 async def init_and_seed():
     print(f"[+] Connecting to database engine: {engine.url}")
-    
+
     async with engine.begin() as conn:
         print("[+] Creating all tables...")
         await conn.run_sync(Base.metadata.create_all)
@@ -36,13 +76,15 @@ async def init_and_seed():
         print("[+] Checking and seeding Disease Knowledge Base...")
         await seed_disease_database(session)
 
-        # Check if demo farmers already seeded
+        # Check whether the demo dataset was seeded completely.
         from sqlalchemy import select
-        existing_farmers = await session.execute(select(Farmer))
-        if existing_farmers.scalars().first():
-            print("[*] Database already contains demo farmer data. Skipping farmer seed.")
+        if await _demo_data_is_complete(session):
+            print("[*] Demo data already fully seeded. Skipping farmer seed.")
             await engine.dispose()
             return
+
+        # Recover from a previous interrupted/partial seed.
+        await _purge_partial_demo_data(session)
 
         print("[+] Seeding demo data for SIH 2026...")
 

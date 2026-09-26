@@ -5,14 +5,37 @@ Pydantic Settings for all environment variables
 """
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+from typing import Annotated, Any
+from pydantic import BeforeValidator
+
+
+def _as_bool(v: Any) -> Any:
+    """Parse booleans leniently.
+
+    Settings like DEBUG / MINIO_USE_SSL use very generic names, so they can be
+    shadowed by ambient OS or shell environment variables (e.g. a machine-wide
+    DEBUG=release exported on Windows). Instead of crashing the whole app on
+    startup, normalise the common truthy/falsy spellings.
+    """
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        val = v.strip().lower()
+        if val in {"1", "true", "t", "yes", "y", "on"}:
+            return True
+        if val in {"0", "false", "f", "no", "n", "off", "release", "prod", "production", ""}:
+            return False
+    return v
+
+
+LooseBool = Annotated[bool, BeforeValidator(_as_bool)]
 
 
 class Settings(BaseSettings):
     # ─── Application ───
     APP_NAME: str = "Krishi-Saarthi API"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: LooseBool = True
 
     # ─── Database ───
     DATABASE_URL: str = "postgresql+asyncpg://krishi_admin:krishi_secure_2026@localhost:5433/krishi_saarthi_master"
@@ -50,7 +73,7 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "krishiminio"
     MINIO_SECRET_KEY: str = "minio_secure_2026"
     MINIO_BUCKET: str = "krishi-saarthi"
-    MINIO_USE_SSL: bool = False
+    MINIO_USE_SSL: LooseBool = False
 
     # ─── Kriging ───
     KRIGING_GRID_SIZE: int = 100

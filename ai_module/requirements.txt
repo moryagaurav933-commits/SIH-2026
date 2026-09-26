@@ -1,0 +1,13 @@
+# Requirements for standalone crop disease prediction (ai_module/predict.py)
+#
+#   pip install -r ai_module/requirements.txt
+#   python ai_module/predict.py <image_path> [tomato|potato|maize|apple]
+#
+# CPU wheels work on both macOS (Intel/Apple Silicon) and Windows. For an
+# NVIDIA GPU, install the CUDA build instead:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+numpy>=1.24
+pillow>=10.0
+torch>=2.0
+torchvision>=0.15

@@ -72,6 +72,8 @@ client_secret*.json
 venv/
 **/venv/
 .venv/
+.venv311/
+**/.venv311/
 **/__pycache__/
 *.py[cod]
 *$py.class
@@ -133,10 +135,21 @@ models/*.pb
 *.safetensors
 !models/.gitkeep
 
+# The trained crop disease model IS required to run predictions and must be
+# committed so macOS/Windows teammates get a working checkout. It is a single
+# 16 MB MobileNetV3 checkpoint, well under the 100 MB GitHub limit.
+!ai_module/best_model_final.pth
+
+# The original split checkpoint (data.pkl + 312 chunks) is NOT needed: the clean
+# single-file model above is what predict.py and the backend load.
+ai_module/best_model_final/
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 7. IDE, OS, AND AGENT CACHES
 # ──────────────────────────────────────────────────────────────────────────────
 .agents/
+.kilo/
+.vscode/
 .DS_Store
 **/.DS_Store
 .Spotlight-V100

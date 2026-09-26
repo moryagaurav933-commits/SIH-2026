@@ -660,7 +660,11 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
   Widget _buildCrazyDiseasePaletteView() {
     final result = _result!;
     final bool isHealthy = result.isHealthy;
-    final Color accentColor = isHealthy ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
+    final bool isLowConfidence = result.isLowConfidence;
+    const Color lowConfColor = Color(0xFFEF6C00);
+    final Color accentColor = isLowConfidence
+        ? lowConfColor
+        : (isHealthy ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F));
     final String confidencePct = '${(result.confidence * 100).toStringAsFixed(1)}%';
 
     return SingleChildScrollView(
@@ -704,13 +708,21 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                         child: Row(
                           children: [
                             Icon(
-                              isHealthy ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                              isLowConfidence
+                                  ? Icons.help_outline_rounded
+                                  : (isHealthy
+                                      ? Icons.check_circle_rounded
+                                      : Icons.warning_amber_rounded),
                               size: 14,
                               color: Colors.white,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              isHealthy ? 'HEALTHY FOLIAGE' : 'DISEASE DETECTED',
+                              isLowConfidence
+                                  ? 'UNCERTAIN'
+                                  : (isHealthy
+                                      ? 'HEALTHY FOLIAGE'
+                                      : 'DISEASE DETECTED'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -723,7 +735,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                       ),
                       const Spacer(),
                       Text(
-                        'Match: $confidencePct',
+                        isLowConfidence ? 'Match: $confidencePct' : 'Match: $confidencePct',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -733,6 +745,40 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                     ],
                   ),
                 ),
+
+                // Low-confidence warning: do not present a guess as a diagnosis.
+                if (isLowConfidence)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: lowConfColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: lowConfColor.withValues(alpha: 0.45)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 20, color: lowConfColor),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            result.lowConfidenceMessageEn.isNotEmpty
+                                ? result.lowConfidenceMessageEn
+                                : 'Low confidence - please retake the photo in good light, close-up and in focus.',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF8A4B00),
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Disease Header & Scientific Pathogen
                 Padding(

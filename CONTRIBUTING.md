@@ -23,7 +23,7 @@ The repository is organized into modular layers:
 - `ai_module/`: PyTorch MobileNetV3 model weights, inference pipeline (`predict.py`), class mappings, and SQL knowledge base.
 - `backend/`: FastAPI REST server, hybrid SQLite/PostgreSQL database engine, PyTorch inference service, and ICAR agronomy heuristics.
 - `mobile_app/`: Flutter cross-platform mobile/desktop/web client with trilingual Voice Copilot, leaf disease scanner, live mandi rates, and PMFBY insurance vault.
-- `database/schemas/`: Production relational database schemas.
+- `database/`: Production relational database schemas.
 
 ---
 

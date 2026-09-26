@@ -11,11 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger("seed_disease_kb")
 
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
+
+# Search order: the canonical location first, then legacy paths kept for
+# backwards compatibility with older checkouts.
 SQL_FILE_PATHS = [
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "database", "01_disease_database.sql"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database", "schemas", "01_disease_database.sql"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "database", "schemas", "01_disease_database.sql"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "ai_module", "disease_database.sql"),
+    os.path.join(_PROJECT_ROOT, "database", "disease_database.sql"),
+    os.path.join(_BACKEND_DIR, "app", "database", "01_disease_database.sql"),
+    os.path.join(_BACKEND_DIR, "database", "schemas", "01_disease_database.sql"),
+    os.path.join(_PROJECT_ROOT, "database", "schemas", "01_disease_database.sql"),
+    os.path.join(_PROJECT_ROOT, "ai_module", "disease_database.sql"),
 ]
 
 def split_sql_statements(sql: str) -> list:

@@ -249,8 +249,9 @@ SIH2026./
 ├── ai_module/                       # AI weights, mappings & DB seed
 │   ├── best_model_final.pth         # PyTorch MobileNetV3 21-class weights (16MB)
 │   ├── class_names.json             # 21 ML class label definitions
-│   ├── disease_database.sql         # 4 crops, 21 diseases, ICAR treatments SQL
 │   ├── disease_kb.json              # Agricultural knowledge base
+│   ├── convert_checkpoint.py        # Rebuilds a single .pth from a split checkpoint
+│   ├── requirements.txt             # Standalone deps for predict.py
 │   └── predict.py                   # PyTorch leaf pathology inference module
 │
 ├── backend/                         # FastAPI AI Backend
@@ -277,8 +278,8 @@ SIH2026./
 │   │   └── providers/               # Language and weather state providers
 │   └── test/                        # Flutter widget and provider tests
 │
-├── database/schemas/                # Master relational SQL schemas
-│   └── 01_disease_database.sql
+├── database/                         # Relational SQL schemas
+│   └── disease_database.sql          # 4 crops, 21 diseases, ICAR treatments SQL
 │
 ├── run_app.sh                       # Unified master launcher & test script
 ├── stop_all.sh                      # Clean process termination script

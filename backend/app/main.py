@@ -215,10 +215,19 @@ async def health_check():
                 "engine": "SQLite 3 (Local Auto-Fallback)" if is_sqlite else "PostgreSQL 16",
                 "farmers_seeded": farmers_cnt,
             }
-            services["postgresql"] = services["database"]
+            # Report the postgresql key honestly: when the engine fell back to
+            # SQLite, PostgreSQL is NOT connected.
+            services["postgresql"] = (
+                {"status": "not_configured", "engine": "PostgreSQL not in use (SQLite fallback active)"}
+                if is_sqlite
+                else {"status": "connected", "engine": "PostgreSQL 16"}
+            )
     except Exception as e:
         services["database"] = {"status": "error", "error": str(e)}
-        services["postgresql"] = services["database"]
+        services["postgresql"] = {
+            "status": "error",
+            "error": "PostgreSQL not in use" if is_sqlite else str(e),
+        }
 
     # 2. Redis check
     try:

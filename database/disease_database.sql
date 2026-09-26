@@ -3,8 +3,8 @@
 -- Complete Dataset: All 21 Records with Fully Populated Child Tables
 -- ====================================================================
 
--- CREATE DATABASE IF NOT EXISTS crop_disease_db;
--- USE crop_disease_db;
+CREATE DATABASE IF NOT EXISTS crop_disease_db;
+USE crop_disease_db;
 
 -- 1. Crops Table
 CREATE TABLE IF NOT EXISTS crops (
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS diseases (
 
 -- 3. Symptoms Table
 CREATE TABLE IF NOT EXISTS disease_symptoms (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     symptom_text TEXT NOT NULL,
     FOREIGN KEY (disease_id) REFERENCES diseases(disease_id) ON DELETE CASCADE
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS disease_symptoms (
 
 -- 4. Healthy Signs Table (for healthy records)
 CREATE TABLE IF NOT EXISTS healthy_signs (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     sign_text TEXT NOT NULL,
     FOREIGN KEY (disease_id) REFERENCES diseases(disease_id) ON DELETE CASCADE
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS healthy_signs (
 
 -- 5. Favorable Conditions Table
 CREATE TABLE IF NOT EXISTS favorable_conditions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     condition_text TEXT NOT NULL,
     FOREIGN KEY (disease_id) REFERENCES diseases(disease_id) ON DELETE CASCADE
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS favorable_conditions (
 
 -- 6. Treatments Table
 CREATE TABLE IF NOT EXISTS treatments (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     category VARCHAR(50) NOT NULL,
     treatment_text TEXT NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS treatments (
 
 -- 7. Prevention Table
 CREATE TABLE IF NOT EXISTS prevention_steps (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     prevention_text TEXT NOT NULL,
     FOREIGN KEY (disease_id) REFERENCES diseases(disease_id) ON DELETE CASCADE
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS prevention_steps (
 
 -- 8. Sources Table
 CREATE TABLE IF NOT EXISTS sources (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     disease_id VARCHAR(100) NOT NULL,
     title VARCHAR(255) NOT NULL,
     organization VARCHAR(255),
@@ -446,7 +446,7 @@ INSERT INTO sources (disease_id, title, organization, url) VALUES
 -- ML Class Mapping (MobileNet v3 class outputs -> disease_id)
 -- ====================================================================
 CREATE TABLE IF NOT EXISTS ml_class_mapping (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     ml_class_name VARCHAR(255) NOT NULL UNIQUE,
     disease_id VARCHAR(100) NOT NULL,
     FOREIGN KEY (disease_id) REFERENCES diseases(disease_id)

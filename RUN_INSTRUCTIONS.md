@@ -9,9 +9,18 @@
 
 Open your terminal in the project root folder and execute:
 
+**macOS / Linux (bash or zsh):**
 ```bash
 ./run_app.sh
 ```
+
+**Windows (PowerShell):**
+```powershell
+.\run_app.ps1
+```
+
+> If PowerShell blocks the script, run this once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
 ### What this single command does automatically:
 1. **Verifies Prerequisites**: Checks that Python 3 and Flutter SDK are installed.
@@ -23,6 +32,8 @@ Open your terminal in the project root folder and execute:
 ---
 
 ## 🎯 2. Available Run Modes
+
+All commands below work identically on both platforms — just swap `./run_app.sh` for `.\run_app.ps1` on Windows.
 
 | Command | Target | Description |
 |---|---|---|
@@ -88,7 +99,31 @@ Once the app is running in Chrome (`http://localhost:3000`) or macOS Desktop, te
 
 ## 🛠️ 4. Manual Setup (Without Using `run_app.sh`)
 
-If you want to run backend and frontend independently in two terminal tabs:
+> ✅ **Cross-platform (macOS + Windows).** All paths are resolved relative to the
+> project root using `os.path.join` / `pathlib`, so the same commands work on both
+> operating systems. On Windows use PowerShell and replace `source venv/bin/activate`
+> with `.venv311\Scripts\Activate.ps1`.
+>
+> 📦 **The trained model is committed to the repository** at
+> `ai_module/best_model_final.pth` (16 MB, PyTorch MobileNetV3, 21 crop-disease
+> classes, ~96% validation accuracy). You do **not** need to train anything, and
+> there is no manual model-placement step — `predict.py` and the backend both
+> resolve it automatically. `torch` and `torchvision` are already listed in
+> `backend/requirements.txt`, so a plain `pip install -r` is enough.
+
+### Running prediction only (no backend, no Flutter)
+
+```bash
+pip install -r ai_module/requirements.txt
+python ai_module/predict.py path/to/leaf.jpg tomato
+```
+
+On Windows, use a forward-slash or backslash path, e.g.
+`python ai_module\predict.py "C:\Users\You\Pictures\leaf.jpg" tomato`.
+
+Valid crop arguments: `tomato`, `potato`, `maize` (or `corn`), `apple`.
+Omit the crop argument to pick it interactively. Predictions below 50%
+confidence are reported as **"Uncertain"** rather than naming a disease.
 
 ### Terminal 1: Backend Setup & Launch
 ```bash
@@ -107,6 +142,16 @@ python3 scripts/init_db.py
 
 # 5. Start FastAPI server
 python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+**Windows PowerShell equivalent:**
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python scripts\init_db.py
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 *API is accessible at `http://127.0.0.1:8000` with Swagger docs at `http://127.0.0.1:8000/docs`.*
 
@@ -199,6 +244,13 @@ On macOS, Flutter is typically installed via Homebrew at `/opt/homebrew/bin/flut
 ```bash
 export PATH="/opt/homebrew/bin:$PATH"
 ```
+
+### Problem: The health check says `degraded`
+**This is normal and harmless.** The app only *requires* the database. If Docker
+PostgreSQL and Redis are not running, the backend auto-falls back to a local
+SQLite file (`backend/krishi_saarthi.db`) and reports `redis`/`minio` as
+`not_configured`. Every feature — diagnosis, weather, mandi, copilot — still
+works. To get a fully `healthy` status, just start Docker Desktop.
 
 ### Problem: "Do I need Docker installed?"
 **No.** Docker is completely optional. The backend includes a self-healing TCP connection checker: if Docker PostgreSQL on port 5433 is down, it silently falls back to local SQLite (`backend/krishi_saarthi.db`) with zero configuration.

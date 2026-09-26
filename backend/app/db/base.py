@@ -36,7 +36,16 @@ if "postgresql" in db_url and ("localhost" in db_url or "127.0.0.1" in db_url):
 # Normalize SQLite database path to ensure seamless resolution from root or backend directories
 if "sqlite" in db_url and ":///" in db_url:
     db_file = db_url.split(":///")[-1]
-    if not db_file.startswith("/"):
+    # Accept POSIX absolute paths ("/..."), Windows drive paths ("C:/...") and
+    # Windows backslash paths. Only a bare filename needs to be anchored to
+    # backend_dir, otherwise a teammate's configured absolute path would be
+    # silently rewritten.
+    is_absolute = (
+        db_file.startswith("/")
+        or db_file.startswith("\\")
+        or (len(db_file) > 1 and db_file[1] == ":")
+    )
+    if not is_absolute:
         clean_name = Path(db_file.lstrip("./")).name
         abs_path = backend_dir / clean_name
         driver = db_url.split(":///")[0]

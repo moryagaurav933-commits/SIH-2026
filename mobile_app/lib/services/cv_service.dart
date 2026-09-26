@@ -129,6 +129,7 @@ class CVService {
         final conf = (data['confidence'] as num?)?.toDouble() ?? 0.95;
         final crop = data['crop']?.toString() ?? cropHint ?? 'Tomato';
         final isHealthy = data['is_healthy'] == true;
+        final isLowConfidence = data['is_low_confidence'] == true;
 
         // Extract treatments
         final treatMap = (dp['treatments'] as Map<String, dynamic>?) ?? {};
@@ -158,6 +159,11 @@ class CVService {
           treatmentHi: orgCure,
           cropType: crop,
           isHealthy: isHealthy,
+          isLowConfidence: isLowConfidence,
+          lowConfidenceMessageEn: data['message']?.toString() ??
+              'Low confidence - please retake the photo in good light, close-up and in focus.',
+          lowConfidenceMessageHi: data['message_hi']?.toString() ??
+              'आत्मविश्वास कम - कृपया अच्छी रोशनी में, पत्ती के करीब से साफ़ फोटो दोबारा लें।',
           modelVersion: data['model_version']?.toString() ?? 'PyTorch MobileNetV3 + Postgres KB',
           pathogen: dp['scientific_name_or_pathogen']?.toString() ?? 'Pathogen',
           chemicalCure: chemCure,
@@ -262,6 +268,13 @@ class DiagnosisResult {
   final String treatmentHi;
   final String cropType;
   final bool isHealthy;
+
+  // True when the model was not confident enough to name a disease. The UI
+  // should show the retake message instead of presenting a guess as fact.
+  final bool isLowConfidence;
+  final String lowConfidenceMessageEn;
+  final String lowConfidenceMessageHi;
+
   final String modelVersion;
   final String pathogen;
   final String chemicalCure;
@@ -291,6 +304,9 @@ class DiagnosisResult {
     required this.treatmentHi,
     required this.cropType,
     required this.isHealthy,
+    this.isLowConfidence = false,
+    this.lowConfidenceMessageEn = '',
+    this.lowConfidenceMessageHi = '',
     required this.modelVersion,
     this.pathogen = 'Pathogen',
     this.chemicalCure = '',

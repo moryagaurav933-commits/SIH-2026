@@ -25,6 +25,17 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
+# Below this confidence the model is not sure enough to name a disease. The app
+# shows a "retake the photo" message instead of a guess, because a wrong
+# high-confidence diagnosis can lead a farmer to spray the wrong pesticide.
+LOW_CONFIDENCE_THRESHOLD = 0.50
+LOW_CONFIDENCE_MESSAGE_EN = (
+    "Low confidence - please retake the photo in good light, close-up and in focus."
+)
+LOW_CONFIDENCE_MESSAGE_HI = (
+    "आत्मविश्वास कम - कृपया अच्छी रोशनी में, पत्ती के करीब से साफ़ फोटो दोबारा लें।"
+)
+
 # Search paths for AI artifacts
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
@@ -139,7 +150,7 @@ class CropAIService:
                     self._class_names = cfg.get("class_names", [])
             except Exception as e:
                 logger.warning(f"Error reading class_names.json: {e}")
-        
+
         if not self._class_names:
             self._class_names = [
                 "Apple___Apple_scab", "Apple___Black_rot", "Apple___Cedar_apple_rust", "Apple___healthy",
@@ -251,7 +262,7 @@ class CropAIService:
                 order = np.argsort(probs)[::-1]
                 top_classes = [self._class_names[i] for i in order]
                 top_probs = [float(probs[i]) for i in order]
-                
+
                 top_raw = top_classes[0]
                 if top_raw.startswith("Apple"):
                     crop_name_detected = "Apple"
@@ -279,12 +290,21 @@ class CropAIService:
 
             kb_entry = self._disease_kb.get(top_class, {})
 
+            is_low_confidence = float(confidence) < LOW_CONFIDENCE_THRESHOLD
+
             return {
                 "predicted_class": top_class,
                 "disease_name_hi": DISEASE_HINDI_NAMES.get(top_class, top_class),
                 "crop": crop_name_detected,
                 "confidence": round(float(confidence), 4),
                 "is_healthy": is_healthy,
+                "is_low_confidence": is_low_confidence,
+                "message": (
+                    LOW_CONFIDENCE_MESSAGE_EN if is_low_confidence else None
+                ),
+                "message_hi": (
+                    LOW_CONFIDENCE_MESSAGE_HI if is_low_confidence else None
+                ),
                 "top_3_predictions": top_3,
                 "kb_immediate_action": kb_entry.get("immediate_action"),
                 "kb_faq": kb_entry.get("faq", []),
