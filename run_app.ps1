@@ -32,11 +32,11 @@ if (-not (Test-Path $py)) {
   # fall back to the standard per-user / system install locations before giving up.
   $candidates = @("py -3.11", "py -3.12", "py -3.10", "python")
   $found = $null
-  foreach ($root in @($env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}, "C:\")) {
-    if (-not $root) { continue }
+  foreach ($searchRoot in @($env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}, "C:\")) {
+    if (-not $searchRoot) { continue }
     foreach ($ver in @("Python313", "Python312", "Python311", "Python310")) {
       foreach ($rel in @("Programs\Python\$ver\python.exe", "Python$($ver.Substring(6))\python.exe")) {
-        $candidates += Join-Path $root $rel
+        $candidates += Join-Path $searchRoot $rel
       }
     }
   }
@@ -124,11 +124,20 @@ if ($Backend) {
       -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8000" `
       -WorkingDirectory (Join-Path $root "backend") `
       -WindowStyle Hidden
-    Start-Sleep -Seconds 8
-    if (Test-Port 8000) {
+    # Poll instead of a fixed sleep. On the very first run the backend loads
+    # torch + MobileNetV3, which can take far longer than 8 seconds and would
+    # otherwise be reported as a bogus "FAILED to start".
+    $ready = $false
+    for ($i = 0; $i -lt 60; $i++) {
+      Start-Sleep -Seconds 1
+      if (Test-Port 8000) { $ready = $true; break }
+    }
+    if ($ready) {
       Write-Host "[backend] up. API docs: http://127.0.0.1:8000/docs" -ForegroundColor Green
     } else {
-      Write-Host "[backend] FAILED to start - check that .venv311 exists" -ForegroundColor Red
+      Write-Host "[backend] FAILED to start after 60s - check that .venv311 exists" -ForegroundColor Red
+      Write-Host "[backend] try running it directly to see the error:" -ForegroundColor Yellow
+      Write-Host "[backend]   cd backend; ..\.venv311\Scripts\python.exe -m uvicorn app.main:app --port 8000" -ForegroundColor Yellow
     }
   }
 }
