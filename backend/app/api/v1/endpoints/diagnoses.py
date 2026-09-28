@@ -282,6 +282,8 @@ async def process_leaf_diagnosis(
         "confidence": inference_result["confidence"],
         "is_healthy": inference_result["is_healthy"],
         "is_low_confidence": inference_result.get("is_low_confidence", False),
+        "is_crop_mismatch": inference_result.get("is_crop_mismatch", False),
+        "crop_match_confidence": inference_result.get("crop_match_confidence"),
         "message": inference_result.get("message"),
         "message_hi": inference_result.get("message_hi"),
         "model_version": inference_result["model_engine"],

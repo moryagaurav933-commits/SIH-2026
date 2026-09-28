@@ -392,33 +392,78 @@ class AIService:
                 }
 
         # Check crops & diseases
+        # Pass 1: a named disease anywhere in the query wins, even when the crop
+        # itself is not mentioned (e.g. "pink bollworm control" without "cotton").
         for crop, diseases in AGRICULTURAL_KNOWLEDGE_BASE.items():
-            if crop in q or (crop == "wheat" and "गेहूं" in q) or (crop == "rice" and ("धान" in q or "चावल" in q)) or (crop == "cotton" and "कपास" in q) or (crop == "tomato" and "टमाटर" in q):
-                for dis_id, dis_info in diseases.items():
-                    if dis_id in q or "रोग" in q or "इलाज" in q or "दवा" in q or "कीड़ा" in q or "उपचार" in q or "धब्बा" in q or "rust" in q or "blast" in q:
-                        reply = (
-                            f"🌾 **{dis_info['name_hi']}** ({dis_info['pathogen']})\n\n"
-                            f"🔍 **लक्षण:** {dis_info['symptoms']}\n\n"
-                            f"🧪 **रासायनिक उपचार:** {dis_info['chemical_treatment']}\n"
-                            f"📊 **मात्रा:** {dis_info['dosage_per_acre']}\n\n"
-                            f"🌿 **जैविक समाधान:** {dis_info['organic_treatment']}\n\n"
-                            f"🛡️ **रोकथाम:** {dis_info['prevention']}"
-                        ) if lang == "hi" else (
-                            f"🌾 **{dis_info['name_hi']}** (Pathogen: {dis_info['pathogen']})\n\n"
-                            f"🔍 **Symptoms:** {dis_info['symptoms']}\n\n"
-                            f"🧪 **Chemical Cure:** {dis_info['chemical_treatment']}\n"
-                            f"📊 **Dosage:** {dis_info['dosage_per_acre']}\n\n"
-                            f"🌿 **Organic Alternative:** {dis_info['organic_treatment']}\n\n"
-                            f"🛡️ **Prevention:** {dis_info['prevention']}"
-                        )
-                        return {
-                            "success": True,
-                            "source": "icar_offline_knowledge",
-                            "model": "krishi-icar-rag-v1",
-                            "reply": reply,
-                            "language": lang,
-                            "offline_fallback": True
-                        }
+            matched = [
+                dis_id for dis_id in diseases
+                if dis_id in q
+                or dis_id.replace("_", " ") in q
+                or dis_id.replace("_", "") in q.replace(" ", "")
+            ]
+            if not matched:
+                continue
+            dis_info = diseases[matched[0]]
+            reply = (
+                f"🌾 **{dis_info['name_hi']}** ({dis_info['pathogen']})\n\n"
+                f"🔍 **लक्षण:** {dis_info['symptoms']}\n\n"
+                f"🧪 **रासायनिक उपचार:** {dis_info['chemical_treatment']}\n"
+                f"📊 **मात्रा:** {dis_info['dosage_per_acre']}\n\n"
+                f"🌿 **जैविक समाधान:** {dis_info['organic_treatment']}\n\n"
+                f"🛡️ **रोकथाम:** {dis_info['prevention']}"
+            ) if lang == "hi" else (
+                f"🌾 **{dis_info['name_hi']}** (Pathogen: {dis_info['pathogen']})\n\n"
+                f"🔍 **Symptoms:** {dis_info['symptoms']}\n\n"
+                f"🧪 **Chemical Cure:** {dis_info['chemical_treatment']}\n"
+                f"📊 **Dosage:** {dis_info['dosage_per_acre']}\n\n"
+                f"🌿 **Organic Alternative:** {dis_info['organic_treatment']}\n\n"
+                f"🛡️ **Prevention:** {dis_info['prevention']}"
+            )
+            return {
+                "success": True,
+                "source": "icar_offline_knowledge",
+                "model": "krishi-icar-rag-v1",
+                "reply": reply,
+                "language": lang,
+                "offline_fallback": True
+            }
+
+        # Pass 2: crop mentioned without a specific disease - give the first
+        # disease profile for that crop.
+        for crop, diseases in AGRICULTURAL_KNOWLEDGE_BASE.items():
+            crop_hit = (
+                crop in q
+                or (crop == "wheat" and "गेहूं" in q)
+                or (crop == "rice" and ("धान" in q or "चावल" in q))
+                or (crop == "cotton" and "कपास" in q)
+                or (crop == "tomato" and "टमाटर" in q)
+            )
+            if not crop_hit:
+                continue
+            dis_info = next(iter(diseases.values()))
+            reply = (
+                f"🌾 **{dis_info['name_hi']}** ({dis_info['pathogen']})\n\n"
+                f"🔍 **लक्षण:** {dis_info['symptoms']}\n\n"
+                f"🧪 **रासायनिक उपचार:** {dis_info['chemical_treatment']}\n"
+                f"📊 **मात्रा:** {dis_info['dosage_per_acre']}\n\n"
+                f"🌿 **जैविक समाधान:** {dis_info['organic_treatment']}\n\n"
+                f"🛡️ **रोकथाम:** {dis_info['prevention']}"
+            ) if lang == "hi" else (
+                f"🌾 **{dis_info['name_hi']}** (Pathogen: {dis_info['pathogen']})\n\n"
+                f"🔍 **Symptoms:** {dis_info['symptoms']}\n\n"
+                f"🧪 **Chemical Cure:** {dis_info['chemical_treatment']}\n"
+                f"📊 **Dosage:** {dis_info['dosage_per_acre']}\n\n"
+                f"🌿 **Organic Alternative:** {dis_info['organic_treatment']}\n\n"
+                f"🛡️ **Prevention:** {dis_info['prevention']}"
+            )
+            return {
+                "success": True,
+                "source": "icar_offline_knowledge",
+                "model": "krishi-icar-rag-v1",
+                "reply": reply,
+                "language": lang,
+                "offline_fallback": True
+            }
 
         # General helpful agronomist response
         default_reply_hi = (

@@ -29,11 +29,22 @@ logger = logging.getLogger(__name__)
 # shows a "retake the photo" message instead of a guess, because a wrong
 # high-confidence diagnosis can lead a farmer to spray the wrong pesticide.
 LOW_CONFIDENCE_THRESHOLD = 0.50
+# Restricting the softmax to the user's chosen crop and renormalising always
+# produces a high top score, even when the model put almost no probability on
+# that crop. Requiring this much raw mass on the selected crop stops a wrong
+# crop selection from being reported as a confident disease diagnosis.
+MIN_CROP_MASS_THRESHOLD = 0.35
 LOW_CONFIDENCE_MESSAGE_EN = (
     "Low confidence - please retake the photo in good light, close-up and in focus."
 )
 LOW_CONFIDENCE_MESSAGE_HI = (
     "आत्मविश्वास कम - कृपया अच्छी रोशनी में, पत्ती के करीब से साफ़ फोटो दोबारा लें।"
+)
+CROP_MISMATCH_MESSAGE_EN = (
+    "This photo does not look like the selected crop. Please select the correct crop before using this result."
+)
+CROP_MISMATCH_MESSAGE_HI = (
+    "यह फोटो चुनी गई फसल जैसी नहीं लगती। कृपया सही फसल चुनें, फिर परिणाम देखें।"
 )
 
 # Search paths for AI artifacts
@@ -250,10 +261,12 @@ class CropAIService:
                 if clean_hint in PLANT_INDICES:
                     key = clean_hint
 
+            crop_mass = 1.0
             if key:
                 crop_name_detected, indices = PLANT_INDICES[key]
                 plant_p = np.array([probs[i] for i in indices])
                 denom = plant_p.sum()
+                crop_mass = float(denom)
                 norm = plant_p / denom if denom > 0 else plant_p
                 order = np.argsort(norm)[::-1]
                 top_classes = [self._class_names[indices[i]] for i in order]
@@ -290,7 +303,16 @@ class CropAIService:
 
             kb_entry = self._disease_kb.get(top_class, {})
 
-            is_low_confidence = float(confidence) < LOW_CONFIDENCE_THRESHOLD
+            is_crop_mismatch = bool(key) and crop_mass < MIN_CROP_MASS_THRESHOLD
+            is_low_confidence = (not is_crop_mismatch) and float(confidence) < LOW_CONFIDENCE_THRESHOLD
+            message = None
+            message_hi = None
+            if is_crop_mismatch:
+                message = CROP_MISMATCH_MESSAGE_EN
+                message_hi = CROP_MISMATCH_MESSAGE_HI
+            elif is_low_confidence:
+                message = LOW_CONFIDENCE_MESSAGE_EN
+                message_hi = LOW_CONFIDENCE_MESSAGE_HI
 
             return {
                 "predicted_class": top_class,
@@ -299,12 +321,10 @@ class CropAIService:
                 "confidence": round(float(confidence), 4),
                 "is_healthy": is_healthy,
                 "is_low_confidence": is_low_confidence,
-                "message": (
-                    LOW_CONFIDENCE_MESSAGE_EN if is_low_confidence else None
-                ),
-                "message_hi": (
-                    LOW_CONFIDENCE_MESSAGE_HI if is_low_confidence else None
-                ),
+                "is_crop_mismatch": is_crop_mismatch,
+                "crop_match_confidence": round(crop_mass, 4),
+                "message": message,
+                "message_hi": message_hi,
                 "top_3_predictions": top_3,
                 "kb_immediate_action": kb_entry.get("immediate_action"),
                 "kb_faq": kb_entry.get("faq", []),

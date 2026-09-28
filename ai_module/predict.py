@@ -19,6 +19,13 @@ TF_LABELS  = os.path.join(BASE, 'models', 'plant_disease_v1', 'class_labels.json
 IMG_SIZE   = 224
 # Below this confidence the prediction is treated as "uncertain".
 LOW_CONFIDENCE_THRESHOLD = 0.50
+# When the user picks a crop we restrict the softmax to that crop's classes and
+# renormalise, which always yields a high top score even when the model puts
+# almost no mass on that crop. So we ALSO require this much raw probability mass
+# on the selected crop before we trust the renormalised confidence; otherwise a
+# potato photo read as "potato" would be reported as 81% Late Blight while the
+# model actually assigned it 0.2%.
+MIN_CROP_MASS_THRESHOLD = 0.35
 
 PLANT_INDICES = {
     '1': ('Tomato',  list(range(11, 21))),
@@ -87,9 +94,11 @@ def predict_pytorch(image_path, plant_key):
 
     _, indices = PLANT_INDICES[plant_key]
     plant_p = np.array([probs[i] for i in indices])
-    norm    = plant_p / plant_p.sum()
-    order   = np.argsort(norm)[::-1]
-    return class_names, indices, norm, order, 'PyTorch'
+    crop_mass = float(plant_p.sum())
+    denom    = plant_p.sum()
+    norm     = plant_p / denom if denom > 0 else plant_p
+    order    = np.argsort(norm)[::-1]
+    return class_names, indices, norm, order, 'PyTorch', crop_mass
 
 def predict_tflite(image_path, plant_key):
     from ai_edge_litert.interpreter import Interpreter
@@ -107,9 +116,11 @@ def predict_tflite(image_path, plant_key):
     probs = interp.get_tensor(out['index'])[0]
     _, indices = PLANT_INDICES[plant_key]
     plant_p = np.array([probs[i] for i in indices])
-    norm    = plant_p / plant_p.sum()
-    order   = np.argsort(norm)[::-1]
-    return class_names, indices, norm, order, 'TFLite'
+    crop_mass = float(plant_p.sum())
+    denom    = plant_p.sum()
+    norm     = plant_p / denom if denom > 0 else plant_p
+    order    = np.argsort(norm)[::-1]
+    return class_names, indices, norm, order, 'TFLite', crop_mass
 
 def main():
     if len(sys.argv) < 2:
@@ -136,9 +147,9 @@ def main():
     # Use PyTorch model if available, else TFLite
     try:
         if os.path.isfile(PT_CKPT):
-            class_names, indices, norm, order, backend = predict_pytorch(image_path, plant_key)
+            class_names, indices, norm, order, backend, crop_mass = predict_pytorch(image_path, plant_key)
         else:
-            class_names, indices, norm, order, backend = predict_tflite(image_path, plant_key)
+            class_names, indices, norm, order, backend, crop_mass = predict_tflite(image_path, plant_key)
     except ValueError as e:
         print(f'ERROR: {e}')
         sys.exit(1)
@@ -152,7 +163,13 @@ def main():
     print()
     top_idx  = indices[order[0]]
     top_conf = norm[order[0]]
-    if top_conf < LOW_CONFIDENCE_THRESHOLD:
+    crop_mismatch = crop_mass < MIN_CROP_MASS_THRESHOLD
+    if crop_mismatch:
+        print('  Result : Uncertain - image does not look like the selected crop')
+        print(f'  Conf   : {top_conf*100:.2f}% (within {plant_name})')
+        print(f'  Match  : only {crop_mass*100:.2f}% model confidence that this is {plant_name}')
+        print(f'  WARNING: Re-select the correct crop before trusting this result.')
+    elif top_conf < LOW_CONFIDENCE_THRESHOLD:
         print('  Result : Uncertain - low confidence')
         print(f'  Conf   : {top_conf*100:.2f}%')
         print('  WARNING: Image is ambiguous; retake in good light / in close-up and retry.')

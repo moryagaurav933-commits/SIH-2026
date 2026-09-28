@@ -660,7 +660,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
   Widget _buildCrazyDiseasePaletteView() {
     final result = _result!;
     final bool isHealthy = result.isHealthy;
-    final bool isLowConfidence = result.isLowConfidence;
+    final bool isLowConfidence = result.isLowConfidence || result.isCropMismatch;
     const Color lowConfColor = Color(0xFFEF6C00);
     final Color accentColor = isLowConfidence
         ? lowConfColor
@@ -708,21 +708,25 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                         child: Row(
                           children: [
                             Icon(
-                              isLowConfidence
-                                  ? Icons.help_outline_rounded
-                                  : (isHealthy
-                                      ? Icons.check_circle_rounded
-                                      : Icons.warning_amber_rounded),
+                              result.isCropMismatch
+                                  ? Icons.grass_rounded
+                                  : (isLowConfidence
+                                      ? Icons.help_outline_rounded
+                                      : (isHealthy
+                                          ? Icons.check_circle_rounded
+                                          : Icons.warning_amber_rounded)),
                               size: 14,
                               color: Colors.white,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              isLowConfidence
-                                  ? 'UNCERTAIN'
-                                  : (isHealthy
-                                      ? 'HEALTHY FOLIAGE'
-                                      : 'DISEASE DETECTED'),
+                              result.isCropMismatch
+                                  ? 'WRONG CROP'
+                                  : (isLowConfidence
+                                      ? 'UNCERTAIN'
+                                      : (isHealthy
+                                          ? 'HEALTHY FOLIAGE'
+                                          : 'DISEASE DETECTED')),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -735,7 +739,11 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                       ),
                       const Spacer(),
                       Text(
-                        isLowConfidence ? 'Match: $confidencePct' : 'Match: $confidencePct',
+                        // On a crop mismatch the headline percentage is misleading,
+                        // so show how much the model thinks it is that crop instead.
+                        result.isCropMismatch
+                            ? 'Crop: ${(result.cropMatchConfidence * 100).toStringAsFixed(1)}%'
+                            : 'Match: $confidencePct',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -765,9 +773,15 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            result.lowConfidenceMessageEn.isNotEmpty
-                                ? result.lowConfidenceMessageEn
-                                : 'Low confidence - please retake the photo in good light, close-up and in focus.',
+                            result.isCropMismatch
+                                ? (result.lowConfidenceMessageEn.isNotEmpty
+                                    ? result.lowConfidenceMessageEn
+                                    : 'This photo does not look like the selected crop. '
+                                        'Please select the correct crop before using this result.')
+                                : (result.lowConfidenceMessageEn.isNotEmpty
+                                    ? result.lowConfidenceMessageEn
+                                    : 'Low confidence - please retake the photo in good light, '
+                                        'close-up and in focus.'),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

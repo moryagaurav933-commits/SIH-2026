@@ -130,6 +130,8 @@ class CVService {
         final crop = data['crop']?.toString() ?? cropHint ?? 'Tomato';
         final isHealthy = data['is_healthy'] == true;
         final isLowConfidence = data['is_low_confidence'] == true;
+        final isCropMismatch = data['is_crop_mismatch'] == true;
+        final cropMatchConf = (data['crop_match_confidence'] as num?)?.toDouble() ?? 1.0;
 
         // Extract treatments
         final treatMap = (dp['treatments'] as Map<String, dynamic>?) ?? {};
@@ -160,6 +162,8 @@ class CVService {
           cropType: crop,
           isHealthy: isHealthy,
           isLowConfidence: isLowConfidence,
+          isCropMismatch: isCropMismatch,
+          cropMatchConfidence: cropMatchConf,
           lowConfidenceMessageEn: data['message']?.toString() ??
               'Low confidence - please retake the photo in good light, close-up and in focus.',
           lowConfidenceMessageHi: data['message_hi']?.toString() ??
@@ -275,6 +279,12 @@ class DiagnosisResult {
   final String lowConfidenceMessageEn;
   final String lowConfidenceMessageHi;
 
+  // True when the selected crop is not what the model sees in the photo. The
+  // disease shown below is then meaningless even though its confidence is high,
+  // so the UI must ask the farmer to re-select the crop first.
+  final bool isCropMismatch;
+  final double cropMatchConfidence;
+
   final String modelVersion;
   final String pathogen;
   final String chemicalCure;
@@ -307,6 +317,8 @@ class DiagnosisResult {
     this.isLowConfidence = false,
     this.lowConfidenceMessageEn = '',
     this.lowConfidenceMessageHi = '',
+    this.isCropMismatch = false,
+    this.cropMatchConfidence = 1.0,
     required this.modelVersion,
     this.pathogen = 'Pathogen',
     this.chemicalCure = '',
