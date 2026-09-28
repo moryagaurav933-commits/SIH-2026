@@ -26,12 +26,13 @@ def _ensure_database():
     if scripts_dir not in sys.path:
         sys.path.insert(0, scripts_dir)
 
-    import asyncio
-
-    from init_db import init_and_seed
-
     try:
-        asyncio.run(init_and_seed())
+        import init_db
+        if hasattr(init_db, "main"):
+            init_db.main()
+        elif hasattr(init_db, "init_and_seed"):
+            import asyncio
+            asyncio.run(init_db.init_and_seed())
     except SystemExit:
         raise
     except Exception as exc:  # pragma: no cover - surfaced by the tests anyway

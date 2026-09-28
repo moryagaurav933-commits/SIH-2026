@@ -241,7 +241,10 @@ async def health_check():
             "ping": "PONG" if pong else "FAIL"
         }
     except Exception as e:
-        services["redis"] = {"status": "error", "error": str(e)}
+        services["redis"] = {
+            "status": "offline_optional" if is_sqlite else "error",
+            "note": "Optional service offline - local in-memory fallback active" if is_sqlite else str(e)
+        }
 
     # 3. MinIO check
     try:
@@ -254,13 +257,27 @@ async def health_check():
                 "bucket": settings.MINIO_BUCKET,
             }
     except Exception as e:
-        services["minio"] = {"status": "error", "error": str(e)}
+        services["minio"] = {
+            "status": "offline_optional" if is_sqlite else "error",
+            "note": "Optional service offline - local filesystem storage active" if is_sqlite else str(e)
+        }
 
-    all_healthy = all(s.get("status") == "connected" for s in services.values())
+    db_ok = services.get("database", {}).get("status") == "connected"
+    redis_ok = services.get("redis", {}).get("status") == "connected"
+    minio_ok = services.get("minio", {}).get("status") == "connected"
+
+    # In local SQLite mode, Redis & MinIO are optional infrastructure services.
+    # The platform is 100% operational for diagnosis, weather, mandi, and AI.
+    if is_sqlite:
+        overall_status = "healthy" if db_ok else "unhealthy"
+    else:
+        overall_status = "healthy" if (db_ok and redis_ok and minio_ok) else "degraded"
+
     return {
-        "status": "healthy" if all_healthy else "degraded",
+        "status": overall_status,
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
+        "mode": "sqlite_local" if is_sqlite else "production",
         "services": services
     }
 

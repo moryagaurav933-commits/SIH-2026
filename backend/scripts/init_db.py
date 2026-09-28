@@ -478,5 +478,11 @@ async def init_and_seed():
     print("[+] Database is fully prepared for SIH 2026 demonstration!")
 
 
-if __name__ == "__main__":
+def main():
+    """Synchronous entry point for scripts and test harnesses."""
     asyncio.run(init_and_seed())
+
+
+if __name__ == "__main__":
+    main()
+

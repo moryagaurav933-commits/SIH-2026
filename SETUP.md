@@ -89,10 +89,10 @@ Quick single-image test:
 **No external services required.** PostgreSQL, Redis and MinIO are optional.
 The app auto-falls back to a local SQLite database, so `init_db.py` and the
 backend work on a fresh laptop with nothing else running. The `/health` endpoint
-will report `"status": "degraded"` with Redis/MinIO errors — **that is expected
-and harmless.** The database itself shows `"status": "connected"`.
+reports `"status": "healthy"` with mode `"sqlite_local"` and notes Redis/MinIO as
+optional offline services. The database shows `"status": "connected"`.
 
-To enable them later, use `infrastructure/docker/docker-compose.dev.yml`.
+To enable containerized PostgreSQL, Redis, and MinIO later, use `infrastructure/docker/docker-compose.dev.yml`.
 
 ---
 

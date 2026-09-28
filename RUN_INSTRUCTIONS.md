@@ -245,12 +245,12 @@ On macOS, Flutter is typically installed via Homebrew at `/opt/homebrew/bin/flut
 export PATH="/opt/homebrew/bin:$PATH"
 ```
 
-### Problem: The health check says `degraded`
-**This is normal and harmless.** The app only *requires* the database. If Docker
-PostgreSQL and Redis are not running, the backend auto-falls back to a local
-SQLite file (`backend/krishi_saarthi.db`) and reports `redis`/`minio` as
-`not_configured`. Every feature — diagnosis, weather, mandi, copilot — still
-works. To get a fully `healthy` status, just start Docker Desktop.
+### Health Check Status
+The `/health` endpoint reports `status: "healthy"` in local development mode when
+the SQLite database is connected. Optional services (Redis / MinIO) are labeled
+`offline_optional` and will not mark your local setup as degraded. Every feature —
+diagnosis, weather, mandi, copilot — is fully operational. To connect full containerized
+services, start Docker via `infrastructure/docker/docker-compose.dev.yml`.
 
 ### Problem: "Do I need Docker installed?"
 **No.** Docker is completely optional. The backend includes a self-healing TCP connection checker: if Docker PostgreSQL on port 5433 is down, it silently falls back to local SQLite (`backend/krishi_saarthi.db`) with zero configuration.

@@ -145,9 +145,9 @@ Sanity check it is alive:
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-`"status": "degraded"` on a laptop is **normal and expected** — it means the SQLite
-database is connected but optional Redis / MinIO are not running. The app works
-without them. `"database": "connected"` is the line that matters.
+`"status": "healthy"` indicates your local SQLite database is connected and
+seeded. Optional services (Redis / MinIO) are reported as `offline_optional` and
+do not block any features. `"database": "connected"` confirms the backend is ready.
 
 ```powershell
 # Flutter app (needs git installed, see section 1)
