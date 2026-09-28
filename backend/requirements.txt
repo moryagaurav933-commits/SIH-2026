@@ -59,7 +59,24 @@ tenacity==9.0.0
 # Testing
 pytest==8.3.0
 pytest-asyncio==0.24.0
-llama-cpp-python==0.2.79
-
 # SQLite Async (development)
 aiosqlite==0.20.0
+
+# ---------------------------------------------------------------------------
+# OPTIONAL: local offline LLM (tinyllama.gguf)
+# ---------------------------------------------------------------------------
+# DO NOT uncomment unless you specifically want the offline chat fallback.
+# ai_service.py already handles a missing llama_cpp gracefully (it is wrapped in
+# try/except ImportError) and falls back to Gemini + the ICAR RAG knowledge base,
+# so every other feature works without it.
+#
+# Why it is off by default: llama-cpp-python compiles C++ from source and needs a
+# working CMake + a C/C++ compiler (Visual Studio Build Tools on Windows, Xcode
+# CLI tools on macOS). Without those, `pip install -r requirements.txt` fails
+# with "CMake configuration failed" and NOBODY can install the project at all.
+#
+# On Windows install the Build Tools first, then:
+#   pip install llama-cpp-python==0.2.79
+# On macOS:  xcode-select --install
+# ---------------------------------------------------------------------------
+# llama-cpp-python==0.2.79

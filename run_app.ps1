@@ -27,18 +27,52 @@ if (-not (Test-Path $py)) {
   Write-Host "[setup] this runs once and takes a few minutes" -ForegroundColor DarkGray
 
   $base = $null
-  foreach ($cand in @("py -3.11", "py -3.12", "py -3.10", "python")) {
-    try {
-      & ([scriptblock]::Create($cand + " --version")) *> $null
-      if ($LASTEXITCODE -eq 0) { $base = $cand; break }
-    } catch { }
-  }
-  if (-not $base) {
-    Write-Host "[setup] FAILED - no Python 3.10+ found. Install Python from python.org and retry." -ForegroundColor Red
-    exit 1
+  # Probe for a working interpreter. `py`/`python` are frequently NOT on PATH on
+  # a fresh Windows install (python.org offers to add it and people skip it), so
+  # fall back to the standard per-user / system install locations before giving up.
+  $candidates = @("py -3.11", "py -3.12", "py -3.10", "python")
+  $found = $null
+  foreach ($root in @($env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}, "C:\")) {
+    if (-not $root) { continue }
+    foreach ($ver in @("Python313", "Python312", "Python311", "Python310")) {
+      foreach ($rel in @("Programs\Python\$ver\python.exe", "Python$($ver.Substring(6))\python.exe")) {
+        $candidates += Join-Path $root $rel
+      }
+    }
   }
 
-  & ([scriptblock]::Create($base + " -m venv $venv"))
+  foreach ($cand in $candidates) {
+    try {
+      if ($cand -match '\.exe$') {
+        # A bare quoted path is a *string* in PowerShell, not a command, so call
+        # the executable directly instead of via [scriptblock]::Create().
+        if (-not (Test-Path -LiteralPath $cand)) { continue }
+        $v = & $cand --version 2>&1
+      } else {
+        $v = & ([scriptblock]::Create($cand + " --version")) 2>&1
+      }
+      if ($LASTEXITCODE -eq 0 -and ($v -join ' ') -match '3\.(1[0-9]|[2-9])') {
+        $found = $cand
+        break
+      }
+    } catch { }
+  }
+
+  if (-not $found) {
+    Write-Host "[setup] FAILED - no Python 3.10+ found." -ForegroundColor Red
+    Write-Host "[setup] Install Python 3.11 from https://www.python.org/downloads/" -ForegroundColor Yellow
+    Write-Host "[setup] and TICK 'Add python.exe to PATH' during setup, then run this again." -ForegroundColor Yellow
+    exit 1
+  }
+  if ($found -match '\.exe$') {
+    Write-Host "[setup] using interpreter: $found" -ForegroundColor DarkGray
+    # Call the .exe directly: a quoted path is a string in PowerShell, so
+    # "& \"path\" -m venv" is a parse error, not a command invocation.
+    & $found -m venv $venv
+  } else {
+    Write-Host "[setup] using interpreter: $found" -ForegroundColor DarkGray
+    & ([scriptblock]::Create($found + " -m venv $venv"))
+  }
   if (-not (Test-Path $py)) {
     Write-Host "[setup] FAILED to create the virtual environment." -ForegroundColor Red
     exit 1
@@ -52,14 +86,21 @@ if (-not (Test-Path $py)) {
     exit 1
   }
 
-  # Make sure the database exists and is seeded with the disease data.
-  Write-Host "[setup] preparing the database ..." -ForegroundColor Cyan
-  Push-Location $root
-  & $py backend\scripts\init_db.py
-  Pop-Location
+    # Make sure the database exists and is seeded with the disease data.
+    Write-Host "[setup] preparing the database ..." -ForegroundColor Cyan
+    Push-Location $root
+    & $py backend\scripts\init_db.py
+    Pop-Location
+    Write-Host "[setup] done." -ForegroundColor Green
+  }
 
-  Write-Host "[setup] done." -ForegroundColor Green
-}
+  # The app reads settings from backend/.env. It is gitignored on purpose (it will
+  # hold real API keys), so a fresh clone has no .env - create one from the
+  # committed template or the backend falls back to built-in defaults.
+  if (-not (Test-Path (Join-Path $root "backend\.env"))) {
+    Write-Host "[setup] creating backend\.env from the template ..." -ForegroundColor Cyan
+    Copy-Item (Join-Path $root "backend\.env.example") (Join-Path $root "backend\.env") -Force
+  }
 
 # If no switch was given, run both.
 if (-not $Backend -and -not $Web) { $Backend = $true; $Web = $true }

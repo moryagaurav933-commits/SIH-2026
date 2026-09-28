@@ -72,19 +72,32 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if ! command -v flutter &> /dev/null; then
-    echo -e "${RED}❌ Flutter SDK not found in PATH.${NC}"
-    echo -e "${YELLOW}   Expected location: /opt/homebrew/bin/flutter${NC}"
-    exit 1
+# Flutter is only required for the app itself. The backend and the ML model run
+# without it, so do not hard-fail here - warn and fall back to backend-only.
+HAVE_FLUTTER=false
+if command -v flutter &> /dev/null; then
+    HAVE_FLUTTER=true
+    echo -e "   ${GREEN}✓${NC} Python:  $(python3 --version)"
+    echo -e "   ${GREEN}✓${NC} Flutter: $(flutter --version | head -n 1)"
+else
+    echo -e "${YELLOW}⚠ Flutter SDK not found - running backend only.${NC}"
+    echo -e "${YELLOW}  Install it from https://docs.flutter.dev/get-started/install${NC}"
+    echo -e "${YELLOW}  to run the app. The AI backend works without it.${NC}"
+    MODE="backend"
 fi
-
-echo -e "   ${GREEN}✓${NC} Python:  $(python3 --version)"
-echo -e "   ${GREEN}✓${NC} Flutter: $(flutter --version | head -n 1)"
 
 # ─── Step 2: Setup & Verify Backend Environment ───
 echo -e "\n${CYAN}[2/4] Verifying Backend & Database...${NC}"
 
 cd "$BACKEND_DIR"
+
+# The app reads settings from backend/.env. It is gitignored on purpose (it will
+# hold real API keys), so a fresh clone does not have one - create it from the
+# committed template before starting.
+if [ ! -f "$BACKEND_DIR/.env" ]; then
+    echo -e "${BLUE}   Creating backend/.env from .env.example...${NC}"
+    cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
+fi
 
 if [ ! -d "venv" ]; then
     echo -e "${BLUE}   Creating Python virtual environment...${NC}"
