@@ -1,0 +1,72 @@
+================================================================================
+MOBILENETV3-LARGE V2 — TEST EVALUATION REPORT
+Generated at: 2026-09-29 07:05:10
+Model Checkpoint: C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\best_model_v2.pth
+================================================================================
+
+1. GLOBAL PERFORMANCE METRICS (UNTOUCHED TEST SET)
+--------------------------------------------------
+Overall Test Accuracy:       97.32%
+Test Loss:                   0.0947
+Macro Precision:             97.73%
+Macro Recall:                98.31%
+Macro F1 Score:              97.97%
+Total Test Images Evaluated: 2,837
+Total Classes Represented:   24 / 24
+
+2. PER-CLASS EVALUATION METRICS TABLE
+--------------------------------------------------------------------------------
+Class Name                          | Precision |    Recall |  F1-Score | Support
+--------------------------------------------------------------------------------
+Cashew___Healthy                    |   100.00% |    97.76% |    98.87% |     134
+Cashew___Leaf_Miner                 |    99.30% |    94.63% |    96.91% |     149
+Cashew___Red_Rust                   |    99.45% |    99.45% |    99.45% |     182
+Cassava___Brown_Spot                |    95.39% |    97.97% |    96.67% |     148
+Cassava___Healthy                   |    96.72% |   100.00% |    98.33% |     118
+Cassava___Mosaic                    |    98.35% |    99.17% |    98.76% |     120
+Chilli___Healthy                    |   100.00% |   100.00% |   100.00% |      46
+Chilli___Nutrition_Deficiency       |   100.00% |   100.00% |   100.00% |      44
+Chilli___White_Spot                 |   100.00% |   100.00% |   100.00% |      20
+Cotton___Bacterial_Blight           |   100.00% |   100.00% |   100.00% |     100
+Cotton___Curl_Virus                 |    98.00% |    98.00% |    98.00% |     100
+Cotton___Healthy                    |    98.00% |    98.00% |    98.00% |     100
+Grape___Black_Rot                   |   100.00% |   100.00% |   100.00% |     118
+Grape___Healthy                     |   100.00% |   100.00% |   100.00% |      42
+Grape___Leaf_Blight                 |   100.00% |   100.00% |   100.00% |     108
+Groundnut___Healthy_Leaf            |    99.32% |   100.00% |    99.66% |     147
+Groundnut___Late_Leaf_Spot          |    99.33% |   100.00% |    99.67% |     149
+Groundnut___Nutrition_Deficiency    |   100.00% |    98.41% |    99.20% |     126
+Papaya___Bacterial_Spot             |    96.74% |    96.74% |    96.74% |      92
+Papaya___Healthy                    |    97.87% |   100.00% |    98.92% |      46
+Papaya___Ring_Spot                  |    98.13% |    98.13% |    98.13% |     107
+Soybean___Caterpillar               |    96.76% |    90.33% |    93.44% |     331
+Soybean___Diabrotica_speciosa       |    92.76% |    93.18% |    92.97% |     220
+Soybean___Healthy                   |    79.28% |    97.78% |    87.56% |      90
+--------------------------------------------------------------------------------
+MACRO AVERAGE                       |    97.73% |    98.31% |    97.97% |    2837
+
+3. TOP 10 MOST CONFUSED CLASS PAIRS
+------------------------------------------------------------
+  # 1: Soybean___Caterpillar  --->  misclassified as  --->  Soybean___Healthy (17 images)
+  # 2: Soybean___Caterpillar  --->  misclassified as  --->  Soybean___Diabrotica_speciosa (15 images)
+  # 3: Soybean___Diabrotica_speciosa  --->  misclassified as  --->  Soybean___Caterpillar (9 images)
+  # 4: Cashew___Leaf_Miner  --->  misclassified as  --->  Cassava___Brown_Spot (6 images)
+  # 5: Soybean___Diabrotica_speciosa  --->  misclassified as  --->  Soybean___Healthy (6 images)
+  # 6: Cassava___Brown_Spot  --->  misclassified as  --->  Cassava___Healthy (2 images)
+  # 7: Cotton___Curl_Virus  --->  misclassified as  --->  Cotton___Healthy (2 images)
+  # 8: Cotton___Healthy  --->  misclassified as  --->  Cotton___Curl_Virus (2 images)
+  # 9: Papaya___Bacterial_Spot  --->  misclassified as  --->  Papaya___Ring_Spot (2 images)
+  #10: Papaya___Ring_Spot  --->  misclassified as  --->  Papaya___Bacterial_Spot (2 images)
+
+4. ARTIFACTS SAVED
+--------------------------------------------------
+• Model Weights:      C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\best_model_v2.pth
+• Class Mapping:      C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\class_names_v2.json
+• Confusion Matrix:   C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\confusion_matrix.png
+• Metrics JSON:       C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\test_metrics.json
+• Training History:   C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\training_history.json
+• Training Config:    C:\Users\Shivang\Desktop\SIH-2026\ai_module\models\v2\training_config.json
+
+================================================================================
+READY FOR REAL-IMAGE PREDICTION TESTING: YES
+================================================================================
