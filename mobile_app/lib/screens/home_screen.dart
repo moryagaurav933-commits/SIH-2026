@@ -2690,11 +2690,107 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       },
                     ),
                     _buildCropOptionTile(
+                      emoji: '🥜',
+                      cropName: context.tr('crop_cashew'),
+                      cropKey: 'cashew',
+                      classesInfo: '3 Classes',
+                      diseases: 'Leaf Miner, Red Rust, Healthy Leaves',
+                      accentColor: const Color(0xFF8D6E63),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'cashew'));
+                      },
+                    ),
+                    _buildCropOptionTile(
                       emoji: '🌿',
+                      cropName: context.tr('crop_cassava'),
+                      cropKey: 'cassava',
+                      classesInfo: '3 Classes',
+                      diseases: 'Cassava Mosaic (CMD), Brown Spot, Healthy',
+                      accentColor: const Color(0xFF2E7D32),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'cassava'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🌶️',
+                      cropName: context.tr('crop_chilli'),
+                      cropKey: 'chilli',
+                      classesInfo: '3 Classes',
+                      diseases: 'White Spot, Nutrient Deficit, Healthy Chilli',
+                      accentColor: const Color(0xFFE53935),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'chilli'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '☁️',
+                      cropName: context.tr('crop_cotton'),
+                      cropKey: 'cotton',
+                      classesInfo: '3 Classes',
+                      diseases: 'Bacterial Blight, Leaf Curl (CLCuV), Healthy',
+                      accentColor: const Color(0xFF546E7A),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'cotton'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🍇',
+                      cropName: context.tr('crop_grape'),
+                      cropKey: 'grape',
+                      classesInfo: '3 Classes',
+                      diseases: 'Black Rot, Leaf Blight, Healthy Grape Vines',
+                      accentColor: const Color(0xFF6A1B9A),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'grape'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🥜',
+                      cropName: context.tr('crop_groundnut'),
+                      cropKey: 'groundnut',
+                      classesInfo: '3 Classes',
+                      diseases: 'Late Leaf Spot (Tikka), Iron Chlorosis, Healthy',
+                      accentColor: const Color(0xFFFB8C00),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'groundnut'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🍈',
+                      cropName: context.tr('crop_papaya'),
+                      cropKey: 'papaya',
+                      classesInfo: '3 Classes',
+                      diseases: 'Ring Spot Virus, Bacterial Spot, Healthy',
+                      accentColor: const Color(0xFF43A047),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'papaya'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🌱',
+                      cropName: context.tr('crop_soybean'),
+                      cropKey: 'soybean',
+                      classesInfo: '3 Classes',
+                      diseases: 'Defoliating Caterpillar, Leaf Beetle, Healthy',
+                      accentColor: const Color(0xFF7CB342),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _navigateTo(const DiagnosisScreen(selectedCrop: 'soybean'));
+                      },
+                    ),
+                    _buildCropOptionTile(
+                      emoji: '🌾',
                       cropName: context.tr('crop_all'),
                       cropKey: 'all',
-                      classesInfo: '21 Classes',
-                      diseases: 'Universal Auto-Detect Optical Scan across all crops',
+                      classesInfo: '45 Classes',
+                      diseases: 'Universal Auto-Detect Optical Scan across all 12 crops (Dual V1+V2)',
                       accentColor: colorPrimary,
                       onTap: () {
                         Navigator.pop(ctx);

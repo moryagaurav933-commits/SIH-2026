@@ -214,11 +214,75 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
             color: const Color(0xFFC2185B),
           ),
           _buildCropCard(
+            emoji: '🥜',
+            cropKey: 'cashew',
+            cropName: context.tr('crop_cashew'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Leaf Miner, Red Rust Algal Disease, Healthy Leaves',
+            color: const Color(0xFF8D6E63),
+          ),
+          _buildCropCard(
             emoji: '🌿',
+            cropKey: 'cassava',
+            cropName: context.tr('crop_cassava'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Cassava Mosaic Disease (CMD), Brown Leaf Spot, Healthy Plant',
+            color: const Color(0xFF2E7D32),
+          ),
+          _buildCropCard(
+            emoji: '🌶️',
+            cropKey: 'chilli',
+            cropName: context.tr('crop_chilli'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'White Spot (Cercospora), Nutrient Deficiency, Healthy Crop',
+            color: const Color(0xFFE53935),
+          ),
+          _buildCropCard(
+            emoji: '☁️',
+            cropKey: 'cotton',
+            cropName: context.tr('crop_cotton'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Bacterial Blight, Leaf Curl Virus (CLCuV), Healthy Foliage',
+            color: const Color(0xFF546E7A),
+          ),
+          _buildCropCard(
+            emoji: '🍇',
+            cropKey: 'grape',
+            cropName: context.tr('crop_grape'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Black Rot, Leaf Blight, Healthy Grape Vines',
+            color: const Color(0xFF6A1B9A),
+          ),
+          _buildCropCard(
+            emoji: '🥜',
+            cropKey: 'groundnut',
+            cropName: context.tr('crop_groundnut'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Late Leaf Spot (Tikka), Iron/Nutrient Chlorosis, Healthy Leaf',
+            color: const Color(0xFFFB8C00),
+          ),
+          _buildCropCard(
+            emoji: '🍈',
+            cropKey: 'papaya',
+            cropName: context.tr('crop_papaya'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Ring Spot Virus (PRSV), Bacterial Leaf Spot, Healthy Foliage',
+            color: const Color(0xFF43A047),
+          ),
+          _buildCropCard(
+            emoji: '🌱',
+            cropKey: 'soybean',
+            cropName: context.tr('crop_soybean'),
+            classesCount: '3 Diagnostic Classes',
+            diseases: 'Defoliating Caterpillar, Diabrotica Leaf Beetle, Healthy Crop',
+            color: const Color(0xFF7CB342),
+          ),
+          _buildCropCard(
+            emoji: '🌾',
             cropKey: 'all',
             cropName: context.tr('crop_all'),
-            classesCount: '21 Total Classes',
-            diseases: 'Universal Auto-Detect Optical Scan across all supported crops & diseases',
+            classesCount: '45 Total Classes across 12 Crops',
+            diseases: 'Universal Auto-Detect Optical Scan (Dual V1+V2 MobileNetV3 Neural Vision Engine)',
             color: colorPrimary,
           ),
         ],
@@ -1469,11 +1533,32 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
       case 'potato':
         return '🥔 Potato (आलू)';
       case 'corn':
+      case 'maize':
         return '🌽 Corn / Maize (मक्का)';
       case 'apple':
         return '🍎 Apple (सेब)';
+      case 'cashew':
+        return '🥜 Cashew (काजू)';
+      case 'cassava':
+        return '🌿 Cassava (कसावा)';
+      case 'chilli':
+      case 'chili':
+        return '🌶️ Chilli (मिर्च)';
+      case 'cotton':
+        return '☁️ Cotton (कपास)';
+      case 'grape':
+      case 'grapes':
+        return '🍇 Grape (अंगूर)';
+      case 'groundnut':
+      case 'peanut':
+        return '🥜 Groundnut (मूंगफली)';
+      case 'papaya':
+        return '🍈 Papaya (पपीता)';
+      case 'soybean':
+      case 'soya':
+        return '🌱 Soybean (सोयाबीन)';
       default:
-        return '🌿 All Crops (सभी फसलें)';
+        return '🌾 All 12 Crops (सभी 12 फसलें)';
     }
   }
 
