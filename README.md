@@ -3,6 +3,9 @@
 > **An Edge-First, Offline-Capable AI Agricultural Operating System**  
 > Engineered for smallholder and marginal farmers across rural India. Featuring on-device Computer Vision diagnosis, trilingual Voice Copilot with Speech Bridge, live Agmarknet mandi market rates, hyperlocal meteorological forecasts, and tamper-proof geo-tagged insurance evidence collection.
 
+> 🚀 **New Developer Handover? Start Here:**
+> Please read **[START_HERE.md](START_HERE.md)** first for the quickstart guide, environment setup, and model testing instructions. For deep technical details on the V1 (21 classes) + V2 (24 classes) dual-model architecture, read **[HANDOVER.md](HANDOVER.md)**.
+
 ---
 
 ## 📑 Table of Contents

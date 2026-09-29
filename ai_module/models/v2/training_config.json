@@ -1,0 +1,18 @@
+{
+  "model_name": "MobileNetV3-Large V2",
+  "architecture": "mobilenet_v3_large",
+  "weights": "ImageNet Pretrained (Transfer Learning)",
+  "input_size": 224,
+  "num_classes": 24,
+  "epochs": 3,
+  "batch_size": 64,
+  "optimizer": "AdamW",
+  "learning_rate": 0.001,
+  "weight_decay": 0.01,
+  "loss_function": "Weighted CrossEntropyLoss",
+  "device": "cpu",
+  "best_epoch": 3,
+  "best_val_accuracy": 0.9676,
+  "best_val_loss": 0.1063,
+  "total_training_time_seconds": 1616.8
+}
