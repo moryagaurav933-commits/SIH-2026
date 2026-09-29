@@ -1,13 +1,18 @@
-# Requirements for standalone crop disease prediction (ai_module/predict.py)
+# ==============================================================================
+# Krishi-Saarthi — Standalone ML inference requirements (PINNED)
+# ==============================================================================
+# Minimal set for running the V1 and V2 disease models from the command line:
 #
 #   pip install -r ai_module/requirements.txt
-#   python ai_module/predict.py <image_path> [tomato|potato|maize|apple]
+#   python ai_module/predict.py    <image> [tomato|potato|maize|apple]
+#   python ai_module/predict_v2.py <image> [cashew|cassava|chilli|cotton|
+#                                                grape|groundnut|papaya|soybean]
 #
-# CPU wheels work on both macOS (Intel/Apple Silicon) and Windows. For an
-# NVIDIA GPU, install the CUDA build instead:
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-numpy>=1.24
-pillow>=10.0
-torch>=2.0
-torchvision>=0.15
+# These exact versions are the ones verified on the reference machine.
+# Python 3.11.x. CPU wheels: inference works on any Windows machine, with or
+# without an NVIDIA GPU. See ../ENVIRONMENT.md.
+# ==============================================================================
+numpy==2.4.6
+pillow==12.3.0
+torch==2.14.0
+torchvision==0.29.0

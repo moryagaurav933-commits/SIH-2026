@@ -1,82 +1,88 @@
-# Krishi-Saarthi Backend Dependencies
-# Core
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
-pydantic==2.9.0
-pydantic-settings==2.5.0
+# ==============================================================================
+# Krishi-Saarthi — Backend + ML dependencies (PINNED)
+# ==============================================================================
+# Every version below is an EXACT pin that was installed, imported and executed
+# successfully on the reference machine (see ../ENVIRONMENT.md).
+#
+#   pip install -r backend/requirements.txt
+#
+# Python: 3.11.x (3.11.9 verified). 32-bit is NOT supported.
+#
+# ── INFERENCE IS CPU-ONLY BY DEFAULT ────────────────────────────────────────
+# The `torch` / `torchvision` pins below resolve to the CPU build, which is what
+# the project is verified against. Do NOT swap in a CUDA build unless you also
+# confirm an NVIDIA GPU is present: the app runs on CPU by design and must not
+# fail on a machine without an NVIDIA card.
+# Optional CUDA upgrade (developer machines with an NVIDIA GPU only):
+#   pip install torch==2.14.0 torchvision==0.29.0 \
+#       --index-url https://download.pytorch.org/whl/cu128
+# ==============================================================================
 
-# Database
-sqlalchemy==2.0.35
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-alembic==1.13.3
+# ── Web framework ────────────────────────────────────────────────────────────
+fastapi==0.141.1
+uvicorn==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
 
-# Auth & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# ── Database (SQLite is the default; PostgreSQL is optional) ─────────────────
+SQLAlchemy==2.1.1
+aiosqlite==0.22.1
+alembic==1.20.0
+asyncpg==0.31.0
+psycopg2-binary==2.9.13
+greenlet==3.5.6
+Mako==1.4.3
+
+# ── Auth & security ──────────────────────────────────────────────────────────
+python-jose==3.5.0
+passlib==1.7.4
 cryptography==43.0.0
-python-multipart==0.0.9
 
-# Task Queue
-celery==5.4.0
-redis==5.0.0
+# ── HTTP clients ─────────────────────────────────────────────────────────────
+httpx==0.28.1
+aiohttp==3.14.3
+requests==2.34.2
 
-# HTTP
-httpx==0.27.0
-aiohttp==3.10.0
-requests==2.32.0
+# ── Redis client (optional at runtime; /health degrades gracefully) ──────────
+redis==8.1.0
 
-# Data & ML
-numpy>=1.24
-pandas>=2.0
-scipy>=1.10
-scikit-learn>=1.3
-# Deep learning (CPU). On macOS/Windows this is enough; the crop disease model
-# is MobileNetV3 in ai_module/best_model_final.pth. For NVIDIA GPU, install the
-# CUDA build instead:  pip install torch torchvision --index-url
-# https://download.pytorch.org/whl/cu121
-torch>=2.0
-torchvision>=0.15
-pillow>=10.0
-ai-edge-litert>=2.0
-
-# Geo
-geopandas==1.0.0
-shapely==2.0.0
-
-# Compression
-brotli==1.1.0
-zstandard==0.23.0
-
-# Logging
-structlog==24.4.0
-
-# Utilities
-python-dotenv==1.0.1
+# ── Logging & utilities ──────────────────────────────────────────────────────
+structlog==26.1.0
+python-dotenv==1.2.3
 shortuuid==1.0.13
-tenacity==9.0.0
+tenacity==9.1.4
 
-# Testing
+# ── Data & ML (CPU inference) ────────────────────────────────────────────────
+numpy==2.4.6
+pillow==12.3.0
+torch==2.14.0
+torchvision==0.29.0
+ai-edge-litert==2.2.0
+
+# ── Testing ──────────────────────────────────────────────────────────────────
 pytest==8.3.0
 pytest-asyncio==0.24.0
-# SQLite Async (development)
-aiosqlite==0.20.0
 
-# ---------------------------------------------------------------------------
-# OPTIONAL: local offline LLM (tinyllama.gguf)
-# ---------------------------------------------------------------------------
-# DO NOT uncomment unless you specifically want the offline chat fallback.
-# ai_service.py already handles a missing llama_cpp gracefully (it is wrapped in
-# try/except ImportError) and falls back to Gemini + the ICAR RAG knowledge base,
-# so every other feature works without it.
+# ==============================================================================
+# OPTIONAL — NOT REQUIRED to start the API, run the backend tests, or run
+# V1/V2 inference. Deliberately left uninstalled so that a fresh clone can never
+# fail to build because of a missing C/C++ toolchain or an old pinned wheel.
+# Uncomment only if you actually run that feature.
+# ==============================================================================
 #
-# Why it is off by default: llama-cpp-python compiles C++ from source and needs a
-# working CMake + a C/C++ compiler (Visual Studio Build Tools on Windows, Xcode
-# CLI tools on macOS). Without those, `pip install -r requirements.txt` fails
-# with "CMake configuration failed" and NOBODY can install the project at all.
+# ── Celery background workers (only needed to run `app.tasks.*` workers) ─────
+# celery==5.4.0
 #
-# On Windows install the Build Tools first, then:
-#   pip install llama-cpp-python==0.2.79
-# On macOS:  xcode-select --install
-# ---------------------------------------------------------------------------
+# ── Optional TFLite / ONNX local LLM (needs CMake + a C++ compiler) ──────────
 # llama-cpp-python==0.2.79
+#
+# ── Unused-by-the-app scientific stack (kept here for reference only) ───────
+# pandas==3.0.6
+# scipy==1.17.1
+# scikit-learn==1.9.1
+# matplotlib==3.11.2
+# geopandas==1.0.0
+# shapely==2.0.0
+# brotli==1.1.0
+# zstandard==0.23.0
