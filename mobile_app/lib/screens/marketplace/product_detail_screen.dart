@@ -795,7 +795,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Deliver to ${_cart.deliveryName} - ${_cart.deliveryAddress.contains("SOLAN") ? "Solan 173212" : "Location Selected"}',
+                        'Deliver to ${_cart.deliveryName} - ${_cart.deliveryPincode.isNotEmpty ? "PIN ${_cart.deliveryPincode}" : "Live Location Selected"}',
                         style: const TextStyle(color: Color(0xFF007185), fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     ),

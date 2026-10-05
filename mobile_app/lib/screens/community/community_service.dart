@@ -69,6 +69,7 @@ class CommunityService extends ChangeNotifier {
         final List list = jsonDecode(commStr);
         _communities.clear();
         _communities.addAll(list.map((item) => Community.fromJson(item as Map<String, dynamic>)));
+        _communities.removeWhere((c) => c.id == 'comm_churdhar' || c.name.toLowerCase().contains('churdhar'));
       } else {
         _seedInitialCommunities();
       }
@@ -77,7 +78,9 @@ class CommunityService extends ChangeNotifier {
         final Map<String, dynamic> map = jsonDecode(msgStr);
         _messages.clear();
         map.forEach((k, v) {
-          _messages[k] = (v as List).map((i) => CommunityMessage.fromJson(i as Map<String, dynamic>)).toList();
+          if (k != 'comm_churdhar') {
+            _messages[k] = (v as List).map((i) => CommunityMessage.fromJson(i as Map<String, dynamic>)).toList();
+          }
         });
       } else {
         _seedInitialMessages();
@@ -87,11 +90,16 @@ class CommunityService extends ChangeNotifier {
         final Map<String, dynamic> map = jsonDecode(postStr);
         _posts.clear();
         map.forEach((k, v) {
-          _posts[k] = (v as List).map((i) => CommunityPost.fromJson(i as Map<String, dynamic>)).toList();
+          if (k != 'comm_churdhar') {
+            _posts[k] = (v as List).map((i) => CommunityPost.fromJson(i as Map<String, dynamic>)).toList();
+          }
         });
       } else {
         _seedInitialPosts();
       }
+
+      // Persist cleaned state without Churdhar
+      _saveToStorage();
 
       notifyListeners();
     } catch (e) {
@@ -796,152 +804,7 @@ class CommunityService extends ChangeNotifier {
   void _seedInitialCommunities() {
     _communities.clear();
 
-    // 1. Churdhar Trek & Farmers Club (Image 1 & 2 exact representation)
-    final churdharMembers = [
-      CommunityMember(
-        id: 'user_you',
-        displayName: 'You',
-        bio: 'The duty of self-discovery',
-        customTag: 'Organizer',
-        role: CommunityRole.admin,
-        joinedAt: DateTime(2026, 8, 15),
-        isCurrentUser: true,
-        avatarColorValue: 0xFFF59E0B,
-      ),
-      CommunityMember(
-        id: 'user_piyush',
-        displayName: 'Piyush .. cR',
-        bio: 'Mandi trade & logistics',
-        role: CommunityRole.admin,
-        joinedAt: DateTime(2026, 8, 16),
-        avatarColorValue: 0xFF0284C7,
-      ),
-      CommunityMember(
-        id: 'user_preetika',
-        displayName: '~ preetikapanwar',
-        phone: '+91 6230 964 723',
-        bio: 'ICAR Plant Pathologist & Soil Expert',
-        role: CommunityRole.admin,
-        joinedAt: DateTime(2026, 8, 16),
-        avatarColorValue: 0xFFEC4899,
-      ),
-      CommunityMember(
-        id: 'user_mayank',
-        displayName: 'Mayank .... Bro ...',
-        bio: 'Stoic',
-        customTag: 'Field Scout',
-        role: CommunityRole.leader,
-        joinedAt: DateTime(2026, 8, 17),
-        avatarColorValue: 0xFF8B5CF6,
-      ),
-      CommunityMember(
-        id: 'user_okay',
-        displayName: '..... Okay....',
-        bio: 'Apple Orchardist, Kotkhai',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 18),
-        avatarColorValue: 0xFF64748B,
-      ),
-      CommunityMember(
-        id: 'user_aditya',
-        displayName: 'Aditya Kumar,BCA',
-        bio: 'AgriTech Drone Pilot',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 19),
-        avatarColorValue: 0xFF0D9488,
-      ),
-      CommunityMember(
-        id: 'user_akshu',
-        displayName: 'Akshu...',
-        bio: 'Organic Farming Practitioner',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 20),
-        avatarColorValue: 0xFFD97706,
-      ),
-      CommunityMember(
-        id: 'user_ankit',
-        displayName: 'Ankit Rana',
-        bio: 'Seed & Fertilizer Collective',
-        customTag: 'Coordinator',
-        role: CommunityRole.leader,
-        joinedAt: DateTime(2026, 8, 21),
-        avatarColorValue: 0xFF2563EB,
-      ),
-      CommunityMember(
-        id: 'user_avani',
-        displayName: 'Avani Yarav',
-        bio: 'Floriculture and Greenhouses',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 22),
-        avatarColorValue: 0xFF9333EA,
-      ),
-      CommunityMember(
-        id: 'user_bhandari',
-        displayName: 'Bhandari .. Bhai',
-        bio: 'Himachal Agro Transport',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 23),
-        avatarColorValue: 0xFF059669,
-      ),
-      CommunityMember(
-        id: 'user_shiivang',
-        displayName: 'Shiivang Manhass',
-        phone: '+91 95180 12365',
-        bio: 'Expedition Guide & Mountain Farmer',
-        role: CommunityRole.leader,
-        joinedAt: DateTime(2026, 8, 24),
-        avatarColorValue: 0xFFEA580C,
-      ),
-      CommunityMember(
-        id: 'user_sanyam',
-        displayName: '~ Sanyam',
-        phone: '+91 95180 12365',
-        bio: 'Smart Polyhouse automation',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 25),
-        avatarColorValue: 0xFF16A34A,
-      ),
-      CommunityMember(
-        id: 'user_utkarsh',
-        displayName: 'Utkarsh... Bhai ......',
-        bio: 'High altitude crop trialist',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 26),
-        avatarColorValue: 0xFF4F46E5,
-      ),
-      CommunityMember(
-        id: 'user_bhavishya',
-        displayName: '~Bhavishya Panwar',
-        bio: 'Mandi commission agent & advisor',
-        role: CommunityRole.member,
-        joinedAt: DateTime(2026, 8, 27),
-        avatarColorValue: 0xFF0284C7,
-      ),
-    ];
-
-    _communities.add(Community(
-      id: 'comm_churdhar',
-      name: 'Churdhar Trek & Farmers Club',
-      bio: 'High altitude farming, trek coordination & community grain pool',
-      description:
-          'Official coordination circle for Churdhar mountain farmers and agro-tourists. We discuss trek logistics, weather advisories, local honey/apple trade, and emergency mesh communication.',
-      category: 'Horticulture & Trek',
-      iconCodePoint: 0xe644, // terrain / landscape
-      iconColorValue: 0xFF2E7D32,
-      createdBy: 'user_you',
-      createdAt: DateTime(2026, 8, 15),
-      isPublic: true,
-      isJoined: true,
-      members: churdharMembers,
-      pinnedMessageId: 'msg_churdhar_pinned',
-      pinnedMessageSnippet: 'Reach at ATM 4:45 Sharp (Changed)*',
-      lastMessageSnippet: 'Bhandari .. Bhai: Hi',
-      lastMessageTime: DateTime.now().subtract(const Duration(minutes: 42)),
-      unreadCount: 3,
-      inviteCode: 'CHURDHAR-2026',
-    ));
-
-    // 2. Solan & Shimla Apple Innovators
+    // 1. Solan & Shimla Apple Innovators
     final appleMembers = [
       CommunityMember(
         id: 'user_you',
@@ -1086,147 +949,6 @@ class CommunityService extends ChangeNotifier {
   void _seedInitialMessages() {
     _messages.clear();
 
-    // Messages for Churdhar Trek matching Image 1
-    _messages['comm_churdhar'] = [
-      CommunityMessage(
-        id: 'msg_churdhar_0',
-        communityId: 'comm_churdhar',
-        senderId: 'user_sanyam',
-        senderName: '~ Sanyam',
-        senderPhone: '+91 95180 12365',
-        senderRole: CommunityRole.member,
-        content: 'Okay 👍',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 2, minutes: 12)),
-        senderColorValue: 0xFF16A34A,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_poll',
-        communityId: 'comm_churdhar',
-        senderId: 'user_shiivang',
-        senderName: 'Shiivang Manhass',
-        senderRole: CommunityRole.leader,
-        content: '📊 Poll: Reach at ATM 4:50 AM Exactly !',
-        type: MessageType.poll,
-        timestamp: DateTime.now().subtract(const Duration(hours: 2, minutes: 9)),
-        senderColorValue: 0xFFEA580C,
-        poll: CommunityPoll(
-          id: 'poll_atm_time',
-          question: 'Reach at ATM 4:50 AM Exactly !',
-          options: [
-            const CommunityPollOption(
-              id: 'opt_1',
-              text: 'Will be there 🕯️',
-              voterUserIds: ['user_shiivang', 'user_ankit', 'user_bhandari', 'user_piyush', 'user_preetika'],
-              voterNames: ['Shiivang Manhass', 'Ankit Rana', 'Bhandari .. Bhai', 'Piyush .. cR', '~ preetikapanwar'],
-            ),
-            const CommunityPollOption(
-              id: 'opt_2',
-              text: 'Sona hai 🛌',
-              voterUserIds: ['user_sanyam'],
-              voterNames: ['~ Sanyam'],
-            ),
-          ],
-          allowMultipleAnswers: false,
-          isClosed: false,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 9)),
-          creatorId: 'user_shiivang',
-          creatorName: 'Shiivang Manhass',
-        ),
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_sys1',
-        communityId: 'comm_churdhar',
-        senderId: 'system',
-        senderName: 'System',
-        content: 'Shiivang Manhass pinned a message',
-        type: MessageType.system,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 55)),
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_pinned',
-        communityId: 'comm_churdhar',
-        senderId: 'user_shiivang',
-        senderName: 'Shiivang Manhass',
-        senderRole: CommunityRole.leader,
-        content: 'Reach at ATM 4:45 Sharp (Changed)* 👈',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 53)),
-        isPinned: true,
-        senderColorValue: 0xFFEA580C,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_sys2',
-        communityId: 'comm_churdhar',
-        senderId: 'system',
-        senderName: 'System',
-        content: 'Shiivang Manhass pinned a message',
-        type: MessageType.system,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 52)),
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_sanyam_joke',
-        communityId: 'comm_churdhar',
-        senderId: 'user_sanyam',
-        senderName: '~ Sanyam',
-        senderPhone: '+91 95180 12365',
-        senderRole: CommunityRole.member,
-        content: 'I will be there at 4:30 💀',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 51)),
-        isEdited: true,
-        reactions: [
-          const MessageReaction(emoji: '👍', userIds: ['user_you', 'user_shiivang', 'user_ankit']),
-        ],
-        senderColorValue: 0xFF16A34A,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_ankit',
-        communityId: 'comm_churdhar',
-        senderId: 'user_ankit',
-        senderName: 'Ankit Rana',
-        senderRole: CommunityRole.leader,
-        content: 'Jo jo 10 bande hai shoolini se zero point ke liye kal woh \'Hi\' message kardo group mein',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 33)),
-        senderColorValue: 0xFF2563EB,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_shiivang_hi',
-        communityId: 'comm_churdhar',
-        senderId: 'user_shiivang',
-        senderName: 'Shiivang Manhass',
-        senderRole: CommunityRole.leader,
-        content: 'Hi',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 32)),
-        senderColorValue: 0xFFEA580C,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_sanyam_hi',
-        communityId: 'comm_churdhar',
-        senderId: 'user_sanyam',
-        senderName: '~ Sanyam',
-        senderPhone: '+91 95180 12365',
-        senderRole: CommunityRole.member,
-        content: 'Hi',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 32)),
-        senderColorValue: 0xFF16A34A,
-      ),
-      CommunityMessage(
-        id: 'msg_churdhar_bhandari_hi',
-        communityId: 'comm_churdhar',
-        senderId: 'user_bhandari',
-        senderName: 'Bhandari .. Bhai',
-        senderRole: CommunityRole.member,
-        content: 'Hi',
-        type: MessageType.text,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 42)),
-        senderColorValue: 0xFF059669,
-      ),
-    ];
-
     // Messages for Apple Innovators
     _messages['comm_apple'] = [
       CommunityMessage(
@@ -1260,59 +982,6 @@ class CommunityService extends ChangeNotifier {
 
   void _seedInitialPosts() {
     _posts.clear();
-
-    _posts['comm_churdhar'] = [
-      CommunityPost(
-        id: 'post_churdhar_1',
-        communityId: 'comm_churdhar',
-        authorId: 'user_shiivang',
-        authorName: 'Shiivang Manhass',
-        authorRole: CommunityRole.leader,
-        content:
-            'Churdhar Expedition and Field Baseline ready! We have mapped all water sources and high-altitude medicinal herbs along the trail. All 49 members please carry fleece warmers and personal mesh radios. 🏔️🌾 #ChurdharTrek #FarmerExpedition #HighAltitudeAgro',
-        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-        likes: 18,
-        isLikedByMe: true,
-        commentsCount: 3,
-        tags: ['#ChurdharTrek', '#FarmerExpedition', '#HighAltitudeAgro'],
-        comments: [
-          CommunityComment(
-            id: 'c1',
-            authorName: 'Ankit Rana',
-            content: 'Ready with 10 powerbanks and mesh beacons.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-          ),
-          CommunityComment(
-            id: 'c2',
-            authorName: '~ preetikapanwar',
-            content: 'Please collect wild juniper and seabuckthorn soil samples along the peak ridge for our ICAR research!',
-            timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-          ),
-        ],
-      ),
-      CommunityPost(
-        id: 'post_churdhar_2',
-        communityId: 'comm_churdhar',
-        authorId: 'user_piyush',
-        authorName: 'Piyush .. cR',
-        authorRole: CommunityRole.admin,
-        content:
-            'Update on community logistics: We have arranged 2 transport vehicles from Solan bypass at 5:00 AM sharp. Shared fuel pool cost comes to ₹240 per member. Please confirm by reacting to this post! 🚜✅',
-        timestamp: DateTime.now().subtract(const Duration(hours: 8)),
-        likes: 12,
-        isLikedByMe: false,
-        commentsCount: 1,
-        tags: ['#Logistics', '#CommunityTransport'],
-        comments: [
-          CommunityComment(
-            id: 'c3',
-            authorName: 'Bhandari .. Bhai',
-            content: 'Vehicle 1 is already fueled and parked near Shamti.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 7)),
-          ),
-        ],
-      ),
-    ];
 
     _posts['comm_apple'] = [
       CommunityPost(

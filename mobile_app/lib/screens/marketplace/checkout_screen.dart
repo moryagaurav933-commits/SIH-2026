@@ -52,6 +52,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_cart.items.isEmpty && MarketplaceCatalog.allProducts.isNotEmpty) {
       _cart.addToCart(MarketplaceCatalog.allProducts.first, quantity: 1);
     }
+    // Automatically detect and set live location in address section
+    _cart.detectAndSetLiveLocation();
   }
 
   @override
@@ -245,6 +247,59 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         child: Text(errorText!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              setModalState(() => errorText = null);
+                              final ok = await _cart.detectAndSetLiveLocation(force: true);
+                              if (ok) {
+                                nameCtrl.text = _cart.deliveryName;
+                                phoneCtrl.text = _cart.deliveryPhone;
+                                pincodeCtrl.text = _cart.deliveryPincode;
+                                addrCtrl.text = _cart.deliveryAddress;
+                                setModalState(() {});
+                              } else {
+                                setModalState(() => errorText = 'Location unavailable or permission denied. Please allow GPS or choose a random farm address.');
+                              }
+                            },
+                            icon: _cart.isDetectingLocation
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2E7D32)),
+                                  )
+                                : const Icon(Icons.my_location, size: 16, color: Color(0xFF2E7D32)),
+                            label: const Text('Live GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF2E7D32)),
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              _cart.setRandomAddress();
+                              nameCtrl.text = _cart.deliveryName;
+                              phoneCtrl.text = _cart.deliveryPhone;
+                              pincodeCtrl.text = _cart.deliveryPincode;
+                              addrCtrl.text = _cart.deliveryAddress;
+                              setModalState(() {});
+                            },
+                            icon: const Icon(Icons.shuffle, size: 16, color: Color(0xFF007185)),
+                            label: const Text('Random Farm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF007185))),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF007185)),
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
@@ -647,30 +702,77 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on, color: Color(0xFF2874F0), size: 18),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    'Delivering to ${_cart.deliveryName}',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (_cart.isLiveLocation) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFF86EFAC)),
+                                    ),
+                                    child: const Text(
+                                      'LIVE GPS',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.location_on, color: Color(0xFF2874F0), size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Delivering to ${_cart.deliveryName}',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF111827),
+                              if (_cart.isDetectingLocation)
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2874F0)),
+                                )
+                              else
+                                InkWell(
+                                  onTap: () async {
+                                    await _cart.detectAndSetLiveLocation(force: true);
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(4.0),
+                                    child: Icon(Icons.my_location, size: 16, color: Color(0xFF2874F0)),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: _showChangeAddressDialog,
+                                child: const Text(
+                                  'Change',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF007185),
+                                  ),
                                 ),
                               ),
                             ],
-                          ),
-                          InkWell(
-                            onTap: _showChangeAddressDialog,
-                            child: const Text(
-                              'Change',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF007185),
-                              ),
-                            ),
                           ),
                         ],
                       ),

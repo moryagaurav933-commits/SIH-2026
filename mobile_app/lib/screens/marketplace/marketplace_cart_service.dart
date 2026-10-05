@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_config.dart';
@@ -20,6 +21,39 @@ class MarketplaceCartService extends ChangeNotifier {
   static const String _kKccBalanceKey = 'ks_marketplace_kcc_balance_v1';
   static const String _kProfileKey = 'ks_marketplace_profile_v1';
 
+  static const List<Map<String, String>> randomFarmingAddresses = [
+    {
+      'name': 'Kisan Vikas Seva Kendra',
+      'phone': '+91 98765 43210',
+      'pincode': '132001',
+      'address': 'Plot No. 44, Kisan Mandi Yard, Near Krishi Bhavan, Karnal, Haryana, 132001, India',
+    },
+    {
+      'name': 'Greenfield Organic Agri Farm',
+      'phone': '+91 98123 45678',
+      'pincode': '203202',
+      'address': 'Farm Unit #8, Post Bilaspur, Greater Noida, Gautam Buddha Nagar, Uttar Pradesh, 203202, India',
+    },
+    {
+      'name': 'Progressive Kisan Collective',
+      'phone': '+91 98450 11223',
+      'pincode': '141114',
+      'address': 'VPO Samrala, Agro Industrial Corridor, District Ludhiana, Punjab, 141114, India',
+    },
+    {
+      'name': 'Himachal High-Density Orchard',
+      'phone': '+91 98160 55443',
+      'pincode': '171001',
+      'address': 'Block C, Model Horticulture Demonstration Zone, Shimla, Himachal Pradesh, 171001, India',
+    },
+    {
+      'name': 'Krishi Vigyan Kendra Demonstration Farm',
+      'phone': '+91 94140 88990',
+      'pincode': '302017',
+      'address': 'Kisan Training Complex, Tonk Road, Jaipur Rural, Rajasthan, 302017, India',
+    },
+  ];
+
   final List<CartItem> _items = [];
   final Set<String> _wishlistIds = {'prod_29', 'prod_01', 'prod_30'}; // 8-teeth rake, Saaf, Khurpi
   final Map<String, String> _notes = {};
@@ -31,11 +65,13 @@ class MarketplaceCartService extends ChangeNotifier {
   final List<MarketplaceOrder> _orders = [];
   double _kccWalletBalance = 2500.0;
 
-  String deliveryName = 'Gaurav Morya';
-  String deliveryPhone = '+91 98160 12345';
-  String deliveryPincode = '173212';
+  String deliveryName = 'Kisan Vikas Hub';
+  String deliveryPhone = '+91 98765 43210';
+  String deliveryPincode = '132001';
   String deliveryAddress =
-      'Parwati Morya c/o osho aashish dhyan mandir, Village majhgaon post office shamti near centa Rosa resort, SOLAN, HIMACHAL PRADESH, 173212, India';
+      'Plot No. 44, Kisan Mandi Yard, Near Krishi Bhavan, Karnal, Haryana, 132001, India';
+  bool isLiveLocation = false;
+  bool isDetectingLocation = false;
 
   List<CartItem> get items => List.unmodifiable(_items);
   Set<String> get wishlistIds => Set.unmodifiable(_wishlistIds);
@@ -123,13 +159,155 @@ class MarketplaceCartService extends ChangeNotifier {
     required String address,
     String? phone,
     String? pincode,
+    bool isLive = false,
   }) {
     deliveryName = name;
     deliveryAddress = address;
+    isLiveLocation = isLive;
     if (phone != null && phone.isNotEmpty) deliveryPhone = phone;
     if (pincode != null && pincode.isNotEmpty) deliveryPincode = pincode;
     _saveToStorage();
     notifyListeners();
+  }
+
+  void setRandomAddress() {
+    final list = List<Map<String, String>>.from(randomFarmingAddresses)..shuffle();
+    final rand = list.first;
+    deliveryName = rand['name']!;
+    deliveryPhone = rand['phone']!;
+    deliveryPincode = rand['pincode']!;
+    deliveryAddress = rand['address']!;
+    isLiveLocation = false;
+    _saveToStorage();
+    notifyListeners();
+  }
+
+  Future<bool> detectAndSetLiveLocation({bool force = false}) async {
+    if (isDetectingLocation) return false;
+    if (isLiveLocation && !force) return true;
+
+    isDetectingLocation = true;
+    notifyListeners();
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        isDetectingLocation = false;
+        notifyListeners();
+        return false;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          isDetectingLocation = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        isDetectingLocation = false;
+        notifyListeners();
+        return false;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+
+      final result = await _reverseGeocodeToAddress(pos.latitude, pos.longitude);
+      if (result != null) {
+        deliveryAddress = result['address'] ?? deliveryAddress;
+        if (result['pincode'] != null && result['pincode']!.isNotEmpty) {
+          deliveryPincode = result['pincode']!;
+        }
+        if (result['city'] != null && result['city']!.isNotEmpty) {
+          deliveryName = 'Verified Farmer (${result['city']})';
+        } else {
+          deliveryName = 'Verified Farmer (Live GPS)';
+        }
+        isLiveLocation = true;
+        _saveToStorage();
+        isDetectingLocation = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('detectAndSetLiveLocation error: $e');
+    }
+
+    isDetectingLocation = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<Map<String, String>?> _reverseGeocodeToAddress(double lat, double lon) async {
+    // 1. BigDataCloud reverse geocode (Fast, reliable, CORS enabled for Web)
+    try {
+      final url = Uri.parse(
+        'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lon&localityLanguage=en',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final city = (data['city'] as String?)?.trim() ?? '';
+        final locality = (data['locality'] as String?)?.trim() ?? '';
+        final state = (data['principalSubdivision'] as String?)?.trim() ?? '';
+        final country = (data['countryName'] as String?)?.trim() ?? 'India';
+        final postcode = (data['postcode'] as String?)?.trim() ?? '';
+
+        final List<String> parts = [];
+        if (locality.isNotEmpty) parts.add(locality);
+        if (city.isNotEmpty && !parts.contains(city)) parts.add(city);
+        if (state.isNotEmpty && !parts.contains(state)) parts.add(state);
+        if (postcode.isNotEmpty) parts.add(postcode);
+        parts.add(country);
+
+        final fullAddress = 'Farm Unit, ${parts.join(', ')}';
+        return {
+          'address': fullAddress,
+          'city': city.isNotEmpty ? city : (locality.isNotEmpty ? locality : state),
+          'pincode': postcode.isNotEmpty ? postcode : deliveryPincode,
+        };
+      }
+    } catch (_) {}
+
+    // 2. OpenStreetMap Nominatim fallback
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'KrishiSaarthiApp/1.0 (kisan@krishisaarthi.in)'},
+      ).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final addr = data['address'] as Map<String, dynamic>?;
+        final displayName = (data['display_name'] as String?)?.trim() ?? '';
+        final postcode = (addr?['postcode'] as String?)?.trim() ?? '';
+        final city = (addr?['city'] ?? addr?['town'] ?? addr?['village'] ?? addr?['county'] ?? '').toString();
+
+        if (displayName.isNotEmpty) {
+          return {
+            'address': 'Farm Premise, $displayName',
+            'city': city,
+            'pincode': postcode.isNotEmpty ? postcode : deliveryPincode,
+          };
+        }
+      }
+    } catch (_) {}
+
+    return {
+      'address': 'Farm GPS Position: ${lat.toStringAsFixed(4)}°N, ${lon.toStringAsFixed(4)}°E, India',
+      'city': 'Regional Farm',
+      'pincode': deliveryPincode,
+    };
   }
 
   void topUpKccWallet(double amount) {
@@ -336,6 +514,7 @@ class MarketplaceCartService extends ChangeNotifier {
           'phone': deliveryPhone,
           'address': deliveryAddress,
           'pincode': deliveryPincode,
+          'isLive': isLiveLocation,
         }),
       );
     } catch (e) {
@@ -384,6 +563,21 @@ class MarketplaceCartService extends ChangeNotifier {
         deliveryPhone = d['phone'] ?? deliveryPhone;
         deliveryAddress = d['address'] ?? deliveryAddress;
         deliveryPincode = d['pincode'] ?? deliveryPincode;
+        isLiveLocation = d['isLive'] ?? false;
+      }
+
+      // Safety check: Purge any personal address traces from old cached storage
+      if (deliveryAddress.toLowerCase().contains('osho') ||
+          deliveryAddress.toLowerCase().contains('parwati') ||
+          deliveryAddress.toLowerCase().contains('majhgaon') ||
+          deliveryAddress.toLowerCase().contains('centa rosa')) {
+        final rand = randomFarmingAddresses.first;
+        deliveryName = rand['name']!;
+        deliveryPhone = rand['phone']!;
+        deliveryPincode = rand['pincode']!;
+        deliveryAddress = rand['address']!;
+        isLiveLocation = false;
+        _saveToStorage();
       }
 
       // Orders
@@ -412,6 +606,9 @@ class MarketplaceCartService extends ChangeNotifier {
         }
       }
       notifyListeners();
+
+      // Automatically detect and write live location into address
+      detectAndSetLiveLocation();
     } catch (e) {
       if (kDebugMode) print('Storage load error: $e');
     }

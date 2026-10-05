@@ -226,7 +226,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 const Icon(Icons.location_on, size: 11, color: Color(0xFF2874F0)),
                 const SizedBox(width: 2),
                 Text(
-                  'Solan 173212',
+                  _cart.deliveryPincode.isNotEmpty ? 'PIN ${_cart.deliveryPincode}' : 'Live Farm GPS',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                 ),
                 const SizedBox(width: 6),

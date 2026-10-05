@@ -120,10 +120,10 @@ void main() {
       expect(cart.isInWishlist(prodId), equals(initial));
     });
 
-    test('Address updating preserves Gaurav Morya Solan details', () {
-      cart.updateAddress(name: 'Gaurav Morya', address: 'Solan HP 173212');
-      expect(cart.deliveryName, equals('Gaurav Morya'));
-      expect(cart.deliveryAddress, contains('Solan'));
+    test('Address updating preserves farmer address details', () {
+      cart.updateAddress(name: 'Kisan Vikas Kendra', address: 'Plot 44, Mandi Yard, Karnal Haryana 132001');
+      expect(cart.deliveryName, equals('Kisan Vikas Kendra'));
+      expect(cart.deliveryAddress, contains('Karnal'));
     });
 
     test('Shopping list notes and date tracking', () {
