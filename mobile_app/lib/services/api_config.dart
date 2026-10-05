@@ -14,16 +14,23 @@ class ApiConfig {
     if (_customBaseUrl != null && _customBaseUrl!.isNotEmpty) {
       return _customBaseUrl!;
     }
-    // Web: Connect directly to current host / localhost on port 8000
+    // Web requests: When hosted on Vercel or any public domain, route API calls
+    // through the same-origin reverse proxy to prevent Mixed-Content (HTTPS/HTTP) blocks.
     if (kIsWeb) {
-      return 'http://localhost:8000/api/v1';
+      if (!Uri.base.host.contains('localhost') && !Uri.base.host.contains('127.0.0.1')) {
+        return Uri.base.resolve('/api/v1').toString().replaceAll(RegExp(r'/+$'), '');
+      }
+      if (Uri.base.port == 8080) {
+        return Uri.base.resolve('/api/v1').toString().replaceAll(RegExp(r'/+$'), '');
+      }
+      return 'http://127.0.0.1:8000/api/v1';
     }
     // Android Emulator
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:8000/api/v1';
     }
     // iOS Simulator, macOS, Windows, Linux
-    return 'http://localhost:8000/api/v1';
+    return 'http://127.0.0.1:8000/api/v1';
   }
 
   // AI & Agronomy Endpoints
@@ -33,6 +40,14 @@ class ApiConfig {
   static String get diagnoseEndpoint => '$baseUrl/diagnose';
   static String get keyStatusUrl => '$baseUrl/ai/key-status';
   static String get configureKeyUrl => '$baseUrl/ai/configure-key';
+  static String get speakUrl => '$baseUrl/ai/speak';
+  static String get ttsUrl => '$baseUrl/ai/tts';
+  static String get stopSpeakUrl => '$baseUrl/ai/stop-speak';
+  static String get voiceRecordStartUrl => '$baseUrl/ai/voice/record-start';
+  static String get voiceRecordStopUrl => '$baseUrl/ai/voice/record-stop';
+  static String get voiceRecordStatusUrl => '$baseUrl/ai/voice/record-status';
+  static String get voiceAnalyzeUrl => '$baseUrl/ai/voice/analyze';
+  static String get voiceTranscribeUrl => '$baseUrl/ai/voice/transcribe';
 
   // Core Service Endpoints
   static String get diagnosesUrl => '$baseUrl/diagnoses/';
@@ -43,4 +58,10 @@ class ApiConfig {
   static String get dashboardStatsUrl => '$baseUrl/dashboard/stats';
   static String get fertilizerVerifyUrl => '$baseUrl/fertilizer/verify';
   static String get insuranceClaimsUrl => '$baseUrl/insurance/claims';
+
+  // Krishi Marketplace Endpoints
+  static String get marketplaceProductsUrl => '$baseUrl/marketplace/products';
+  static String get marketplaceOrdersUrl => '$baseUrl/marketplace/orders';
+  static String get marketplaceCouponsValidateUrl => '$baseUrl/marketplace/coupons/validate';
+  static String get marketplaceVerifyOtpUrl => '$baseUrl/marketplace/orders/verify-otp';
 }

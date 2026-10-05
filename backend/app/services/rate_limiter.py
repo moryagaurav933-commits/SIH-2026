@@ -44,6 +44,10 @@ class SlidingWindowRateLimiter:
             (allowed: bool, remaining: int, reset_in_seconds: int, cached_data: Optional[Dict])
         """
         with self._lock:
+            # If high-capacity / uncapped inference is configured, never throttle or block
+            if self.limit >= 99999:
+                return True, 999999, 0, None
+
             now = time.time()
             cutoff = now - self.window_seconds
 
@@ -108,7 +112,7 @@ class SlidingWindowRateLimiter:
                 "cache_hits_served": self._cache_hits,
                 "cached_items_count": len(self._cache),
                 "quota_engaged": used >= self.limit,
-                "policy": f"Strict {self.limit} requests per 1 hour free-tier protection guard active"
+                "policy": "High-Capacity AI Inference Active (Uncapped Tokens & Requests)" if self.limit > 1000 else f"Strict {self.limit} requests per 1 hour free-tier protection guard active"
             }
 
 

@@ -353,6 +353,8 @@ def run_full_sanity_check(expected_total, audit_rows):
             sz = path.stat().st_size
             if sz == 0:
                 return (split, crop, disease, path, False, "ZERO_BYTE", None, None, 0)
+            if Image is None:
+                return (split, crop, disease, path, False, "PIL/Pillow not installed (pip install pillow)", None, None, 0)
             h = hash_file(path)
             with Image.open(path) as img:
                 dims = img.size

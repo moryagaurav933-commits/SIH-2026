@@ -71,9 +71,16 @@ client_secret*.json
 # ──────────────────────────────────────────────────────────────────────────────
 venv/
 **/venv/
+venv
+**/venv
 .venv/
+**/.venv/
+.venv
+**/.venv
 .venv311/
 **/.venv311/
+*.zip
+deployyyy
 **/__pycache__/
 *.py[cod]
 *$py.class

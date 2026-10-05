@@ -2,7 +2,9 @@
 API v1 router - Aggregates all endpoint routers.
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, farmers, diagnoses, weather, mandi, mesh, insurance, kriging, dashboard, ai
+from app.api.v1.endpoints import (
+    auth, farmers, diagnoses, weather, mandi, mesh, insurance, kriging, dashboard, ai, marketplace
+)
 
 api_router = APIRouter()
 
@@ -16,3 +18,4 @@ api_router.include_router(insurance.router)
 api_router.include_router(kriging.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(ai.router)
+api_router.include_router(marketplace.router)

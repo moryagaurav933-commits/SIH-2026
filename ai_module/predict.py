@@ -55,6 +55,30 @@ def _load_image(image_path):
         ) from e
 
 
+def verify_leaf_presence(img):
+    """Botanical leaf foliage check."""
+    small = img.convert("RGB").resize((128, 128), Image.BILINEAR)
+    arr = np.array(small, dtype=np.float32)
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    is_green = (g > r * 0.92) & (g > b * 1.05) & (g > 28) & (g < 250)
+    is_yellow = (r > 50) & (g > 50) & (b < r * 0.85) & (b < g * 0.85) & (np.abs(r - g) < 70)
+    is_brown = (r > 35) & (r < 220) & (g > 20) & (g < r * 0.98) & (b < g * 0.88) & ((r - b) > 15)
+    leaf_mask = is_green | is_yellow | is_brown
+    leaf_ratio = float(np.mean(leaf_mask))
+
+    channel_stds = np.std(arr, axis=(0, 1))
+    if float(np.mean(channel_stds)) < 6.0:
+        if leaf_ratio < 0.80:
+            return False
+
+    diff_h = np.mean(leaf_mask[1:, :] ^ leaf_mask[:-1, :])
+    diff_w = np.mean(leaf_mask[:, 1:] ^ leaf_mask[:, :-1])
+    coherence = 1.0 - float(diff_h + diff_w) / 2.0
+    if leaf_ratio < 0.05 or (leaf_ratio > 0.30 and coherence < 0.60):
+        return False
+    return True
+
+
 def select_plant():
     print('\n  Select your crop/plant:')
     for k, (name, _) in PLANT_INDICES.items():
@@ -143,6 +167,24 @@ def main():
     else:
         plant_key = select_plant()
     plant_name = PLANT_INDICES[plant_key][0]
+
+    # Check leaf presence before model inference
+    try:
+        pil_img = _load_image(image_path)
+        if not verify_leaf_presence(pil_img):
+            sep = '=' * 58
+            print(f'\n{sep}')
+            print(f'  PLANT DISEASE PREDICTION (Botanical Guard)')
+            print(sep)
+            print(f'  Image  : {os.path.basename(image_path)}')
+            print(f'  Plant  : {plant_name}')
+            print()
+            print('  Result : NO leaf detected in the image you provide')
+            print('  WARNING: The provided photo does not contain a recognized plant leaf.')
+            print(f'{sep}\n')
+            return
+    except Exception:
+        pass
 
     # Use PyTorch model if available, else TFLite
     try:

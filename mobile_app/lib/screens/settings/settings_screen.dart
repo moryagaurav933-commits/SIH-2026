@@ -19,11 +19,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _voiceFeedback = true;
   bool _biometricLock = true;
 
-  final TextEditingController _apiKeyController = TextEditingController();
   final LLMService _llmService = LLMService();
   String _aiStatus = 'जांच हो रही है...';
-  bool _isKeyConfigured = false;
-  bool _isTestingKey = false;
+  bool _isKeyConfigured = true;
 
   @override
   void initState() {
@@ -31,56 +29,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _checkApiKeyStatus();
   }
 
-  @override
-  void dispose() {
-    _apiKeyController.dispose();
-    super.dispose();
-  }
-
   Future<void> _checkApiKeyStatus() async {
     final status = await _llmService.checkKeyStatus();
+    if (!mounted) return;
     setState(() {
       _isKeyConfigured = status['configured'] == true;
       _aiStatus = _isKeyConfigured
-          ? 'सक्रिय (Active): ${status['active_model'] ?? 'gemini-1.5-flash'}'
+          ? 'सक्रिय: Google Gemini AI (Uncapped)'
           : 'ऑफ़लाइन ICAR नॉलेज बेस सक्रिय';
     });
-  }
-
-  Future<void> _saveAndTestApiKey() async {
-    final key = _apiKeyController.text.trim();
-    if (key.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('कृपया एक वैध Google Gemini API Key दर्ज करें')),
-      );
-      return;
-    }
-
-    setState(() => _isTestingKey = true);
-    await _llmService.configureRemoteApiKey(key);
-
-    try {
-      final reply = await _llmService.answerQuestion('नमस्ते, क्या आप तैयार हैं?', 'hi');
-      setState(() {
-        _isTestingKey = false;
-        _isKeyConfigured = true;
-        _aiStatus = 'सफलतापूर्वक कनेक्टेड (Connected to Gemini AI)';
-      });
-      _apiKeyController.clear();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF2E7D32),
-            content: Text('✅ AI कुंजी सक्रिय हो गई!\nउत्तर: ${reply.substring(0, reply.length > 50 ? 50 : reply.length)}...'),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isTestingKey = false;
-        _aiStatus = 'कनेक्शन त्रुटि - ऑफ़लाइन मोड उपयोग करें';
-      });
-    }
   }
 
   @override
@@ -132,66 +89,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'वर्तमान स्थिति: $_aiStatus',
                     style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1B3520),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.5)),
+                      color: const Color(0xFF142E1B),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF4ADE80).withValues(alpha: 0.4)),
                     ),
-                    child: const Row(
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.verified, size: 14, color: Color(0xFF69F0AE)),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'सुरक्षित जेमिनी 2.5 फ़्लैश कुंजी पहले से सक्रिय है (Pre-configured & Secured for Zip Sharing)।',
-                            style: TextStyle(fontSize: 10.5, color: Color(0xFFC8E6C9), fontWeight: FontWeight.w600),
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.verified, size: 16, color: Color(0xFF4ADE80)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'ग्लोबल जेमिनी AI इंजन सक्रिय (Global Engine Active)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFE8F5E9),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(Icons.lock_outline, size: 14, color: Color(0xFF81C784)),
+                            SizedBox(width: 6),
+                            Text('सुरक्षा: ', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                            Text('सर्वर-स्तरीय एन्क्रिप्शन (Zero Client Exposure)', style: TextStyle(fontSize: 11, color: Color(0xFFC8E6C9))),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.all_inclusive, size: 14, color: Color(0xFF81C784)),
+                            SizedBox(width: 6),
+                            Text('कोटा व टोकन: ', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                            Text('असीमित (Uncapped High-Capacity)', style: TextStyle(fontSize: 11, color: Color(0xFFC8E6C9))),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.psychology, size: 14, color: Color(0xFF81C784)),
+                            SizedBox(width: 6),
+                            Text('मॉडल: ', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                            Text('Google Gemini Flash + ICAR RAG', style: TextStyle(fontSize: 11, color: Color(0xFFC8E6C9))),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _apiKeyController,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Google Gemini API Key दर्ज करें...',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                      filled: true,
-                      fillColor: const Color(0xFF252538),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.info_outline, size: 18, color: Colors.white38),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Gemini API Key aistudio.google.com से निःशुल्क प्राप्त की जा सकती है।')),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: _isTestingKey ? null : _saveAndTestApiKey,
-                      icon: _isTestingKey
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.key, size: 16, color: Colors.white),
-                      label: Text(
-                        _isTestingKey ? 'जांच हो रही है...' : 'कुंजी सहेजें व AI टेस्ट करें (Save & Test)',
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                      ),
                     ),
                   ),
                 ],
@@ -273,8 +225,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('KS-MESH-LKO-88219 (Aadhaar Linked)', style: TextStyle(color: Colors.white60, fontSize: 12)),
                   trailing: const Icon(Icons.copy, size: 18, color: Colors.white60),
                   onTap: () {
+                    ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('📋 नोड आईडी कॉपी हो गई')),
+                      SnackBar(
+                        content: const Text('📋 नोड आईडी कॉपी हो गई'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     );
                   },
                 ),

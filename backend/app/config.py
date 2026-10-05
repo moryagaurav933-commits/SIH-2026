@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # ─── AI & Basemaps ───
     GEMINI_API_KEY: str = ""
     GEMINI_RATE_LIMIT_PER_HOUR: int = 999999
+    GOOGLE_MAPS_API_KEY: str = ""
     CARTO_API_KEY: str = ""
     CARTO_RATE_LIMIT_PER_HOUR: int = 15
 

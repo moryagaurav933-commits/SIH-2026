@@ -40,20 +40,27 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   /// Trigger GPS location search when user taps GPS button.
   Future<void> _handleGpsTap(BuildContext context, WeatherProvider weatherProv) async {
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(context.tr('weather_gps_fetching')),
         duration: const Duration(seconds: 2),
         backgroundColor: colorPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
 
     final success = await weatherProv.fetchWeatherForGps();
     if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.tr('weather_gps_denied')),
           backgroundColor: colorWarning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }

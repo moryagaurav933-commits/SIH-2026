@@ -1,4 +1,4 @@
-"""End-to-end check of the backend CropAIService confidence gating."""
+"""End-to-end check of the backend CropAIService confidence gating across V1 and V2 models."""
 import io, os, sys
 import numpy as np
 from PIL import Image
@@ -7,8 +7,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from app.services.crop_ai_service import CropAIService
 
 svc = CropAIService.get_instance()
-assert svc._model is not None, "model failed to load - would silently fall back!"
-print(f"engine: {svc.run_inference(open('x','rb').read() or b'', None)['model_engine'] if False else 'loaded'}\n")
+assert svc._model is not None, "V1 model failed to load - would silently fall back!"
+assert svc._model_v2 is not None, "V2 model failed to load - would silently fall back!"
+
+print("=" * 94)
+print("  KRISHI-SAARTHI UNIFIED SERVICE CHECK: DUAL MOBILENETV3 (V1 + V2)")
+print("=" * 94)
+print(f"  V1 Model (4 crops / 21 classes) : Loaded (best_model_final.pth)")
+print(f"  V2 Model (8 crops / 24 classes) : Loaded (best_model_v2.pth)")
+print(f"  Total Classes Integrated        : {len(svc._class_names) + len(svc._class_names_v2)} classes across 12 crops")
+print("=" * 94)
 
 rng = np.random.default_rng(7)
 base = np.zeros((300, 300, 3), np.uint8)
@@ -16,25 +24,26 @@ base[..., 0], base[..., 1], base[..., 2] = 60, 130, 55
 green = np.clip(base.astype(int) + rng.normal(0, 8, base.shape), 0, 255).astype(np.uint8)
 buf = io.BytesIO(); Image.fromarray(green).save(buf, format="JPEG")
 
-print(f"{'crop hint':<10}{'predicted':<40}{'conf':>8}{'crop mass':>11}{'mismatch':>10}{'lowconf':>9}")
-print("-" * 88)
+print(f"{'crop hint':<12}{'model engine':<25}{'predicted':<35}{'conf':>8}{'mismatch':>10}")
+print("-" * 94)
 ok = True
-for hint in ("tomato", "potato", "maize", "apple", None):
+
+test_hints = ["tomato", "potato", "maize", "apple", "cashew", "chilli", "cotton", "grape", None]
+for hint in test_hints:
     r = svc.run_inference(buf.getvalue(), hint)
-    print(f"{str(hint):<10}{r['predicted_class']:<40}{r['confidence']*100:>7.1f}%"
-          f"{r['crop_match_confidence']*100:>10.1f}%{str(r['is_crop_mismatch']):>10}{str(r['is_low_confidence']):>9}")
-    # A crop the model barely believes in must be flagged as a mismatch, so the
-    # UI shows "WRONG CROP" instead of a confident (but meaningless) disease.
+    engine_short = "V2 (best_model_v2)" if "V2" in r.get("model_engine", "") else "V1 (best_model_final)"
+    print(f"{str(hint):<12}{engine_short:<25}{r['predicted_class']:<35}{r['confidence']*100:>7.1f}%"
+          f"{str(r['is_crop_mismatch']):>10}")
+    
+    # A crop the model barely believes in must be flagged as a mismatch
     if hint in ("potato", "apple") and not r["is_crop_mismatch"]:
         ok = False
-    # The crop the model actually recognises must NOT be flagged.
     if hint == "tomato" and r["is_crop_mismatch"]:
         ok = False
-    # With no crop hint the model picks the crop itself, so mismatch is moot.
     if hint is None and r["is_crop_mismatch"]:
         ok = False
 
 print()
-print("PASS: wrong-crop results flagged, right-crop result trusted" if ok
+print("PASS: Both V1 and V2 models active, wrong-crop results flagged, right-crop trusted" if ok
       else "FAIL: crop-match gating is not behaving as expected")
 sys.exit(0 if ok else 1)

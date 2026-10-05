@@ -3,9 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
-import 'llm_service.dart';
 
-/// Computer Vision service for crop disease detection using TFLite/ONNX models.
+/// Sends leaf images to the project's local FastAPI/PyTorch crop classifiers.
 class CVService {
   static const String modelPath = 'assets/models/mobilenetv4_leaf_classifier_int8.tflite';
   static const String labelsPath = 'assets/models/labels.txt';
@@ -13,6 +12,27 @@ class CVService {
   static const int numClasses = 38; // PlantVillage dataset classes
 
   bool _isInitialized = false;
+
+  DiagnosisResult _unavailableResult(String? cropHint, {String? reason}) => DiagnosisResult(
+        diseaseName: 'Could not identify disease from this photo',
+        diseaseNameHi: 'रोग की पहचान नहीं हो सकी',
+        confidence: 0,
+        severity: 'low',
+        treatmentEn: '',
+        treatmentHi: '',
+        cropType: cropHint ?? 'Unknown',
+        isHealthy: false,
+        isLowConfidence: true,
+        lowConfidenceMessageEn: reason ??
+            'The local crop classifier is unavailable. Start the project backend, then try again.',
+        lowConfidenceMessageHi:
+            'फोटो का विश्लेषण उपलब्ध नहीं है। फसल पहचान सेवा से जुड़कर पत्ती की साफ़, नज़दीकी फोटो के साथ फिर प्रयास करें।',
+        modelVersion: 'no_classifier_result',
+        pathogen: 'Unknown',
+        immediateAction:
+            'Do not apply a pesticide based on this result. Retake the photo or reconnect to the classifier.',
+        spotDosage: 0,
+      );
 
   // Disease name mapping (English -> Hindi)
   static const Map<String, String> diseaseNamesHindi = {
@@ -68,7 +88,7 @@ class CVService {
     _isInitialized = true;
   }
 
-  /// Run multimodal AI leaf inference via FastAPI / Gemini with ICAR edge fallback.
+  /// Run leaf inference only through the project's local FastAPI/PyTorch models.
   Future<DiagnosisResult> diagnose([
     dynamic imageSource,
     String? cropHint,
@@ -94,8 +114,9 @@ class CVService {
       debugPrint('Error reading leaf image bytes: $e');
     }
 
-    // Default minimal test leaf payload if testing from simulated camera
-    base64Str ??= 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    if (base64Str == null || base64Str.isEmpty) {
+      return _unavailableResult(cropHint);
+    }
 
     // 1. Primary: Direct high-performance Backend PyTorch + PostgreSQL diagnosis endpoint
     try {
@@ -116,20 +137,26 @@ class CVService {
       if (gpsLon != null) request.fields['gps_lon'] = gpsLon.toString();
       if (districtCode != null) request.fields['district_code'] = districtCode;
 
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
+      // The first request may take longer while the local PyTorch service warms up.
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 120));
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-                final dp = (data['disease_profile'] as Map<String, dynamic>?) ?? {};
+        final dp = (data['disease_profile'] as Map<String, dynamic>?) ?? {};
         final kb = (data['kb_info'] as Map<String, dynamic>?) ?? {};
 
-        final diseaseEn = data['disease_name']?.toString() ?? data['predicted_class']?.toString() ?? 'Tomato Septoria Leaf Spot';
+        final diseaseValue = data['disease_name'] ?? data['predicted_class'];
+        if (diseaseValue == null || diseaseValue.toString().trim().isEmpty) {
+          throw StateError('The crop classifier returned no disease label.');
+        }
+        final diseaseEn = diseaseValue.toString();
         final diseaseHi = data['disease_name_hi']?.toString() ?? diseaseNamesHindi[diseaseEn] ?? diseaseEn;
-        final conf = (data['confidence'] as num?)?.toDouble() ?? 0.95;
-        final crop = data['crop']?.toString() ?? cropHint ?? 'Tomato';
+        final rawConfidence = data['confidence'];
+        final conf = rawConfidence is num ? rawConfidence.toDouble() : 0.0;
+        final crop = data['crop']?.toString() ?? cropHint ?? 'Unknown';
         final isHealthy = data['is_healthy'] == true;
-        final isLowConfidence = data['is_low_confidence'] == true;
+        final isLowConfidence = data['is_low_confidence'] == true || rawConfidence is! num;
         final isCropMismatch = data['is_crop_mismatch'] == true;
         final cropMatchConf = (data['crop_match_confidence'] as num?)?.toDouble() ?? 1.0;
 
@@ -139,8 +166,8 @@ class CVService {
         final chemList = (treatMap['chemical'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
         final bioList = (treatMap['biological'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
 
-        final chemCure = chemList.isNotEmpty ? chemList.join('; ') : 'CIBRC approved fungicide';
-        final orgCure = bioList.isNotEmpty ? bioList.join('; ') : (cultList.isNotEmpty ? cultList.join('; ') : 'Neem oil or bio-control');
+        final chemCure = chemList.isNotEmpty ? chemList.join('; ') : '';
+        final orgCure = bioList.isNotEmpty ? bioList.join('; ') : cultList.join('; ');
         final action = dp['farmer_action']?.toString() ?? kb['immediate_action']?.toString() ?? 'Isolate affected plant parts.';
 
         final symptomsList = (dp['symptoms'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
@@ -187,78 +214,23 @@ class CVService {
           sources: sourcesList,
         );
       }
-    } catch (e) {
-      debugPrint('Direct /api/diagnose failed or timed out: . Falling back to multimodal AI / ICAR.');
-    }
-
-    // 2. Secondary Multimodal AI Fallback (Gemini / Cloud)
-    try {
-      final aiRes = await LLMService().diagnoseLeaf(
-        base64Str,
-        cropHint: cropHint ?? 'wheat',
-        gpsLat: gpsLat,
-        gpsLon: gpsLon,
-        districtCode: districtCode,
-      );
-
-      final diag = (aiRes['diagnosis'] is Map<String, dynamic>)
-          ? aiRes['diagnosis'] as Map<String, dynamic>
-          : aiRes;
-
-      final diseaseEn = (diag['disease_name_en'] ?? diag['disease_name'] ?? 'Wheat Yellow Rust').toString();
-      final diseaseHi = (diag['disease_name_hi'] ?? diseaseNamesHindi[diseaseEn] ?? 'गेहूं - पीला रतुआ').toString();
-      final confidence = (diag['confidence'] as num?)?.toDouble() ?? 0.94;
-      final crop = (diag['crop'] ?? cropHint ?? 'wheat').toString();
-      final chem = (diag['chemical_cure'] ?? diag['treatment_en'] ?? treatments[diseaseEn]?['en'] ?? 'Apply propiconazole 25% EC @ 1ml/L.').toString();
-      final org = (diag['organic_cure'] ?? diag['treatment_hi'] ?? treatments[diseaseEn]?['hi'] ?? 'नीम तेल 1500 ppm @ 5ml/L का छिड़काव करें।').toString();
-      final action = (diag['immediate_action'] ?? 'Isolate infected crops and maintain drainage.').toString();
-      final spotDose = (diag['spot_dosage_ml_per_liter'] as num?)?.toDouble() ?? 1.5;
-      final isHealthy = diseaseEn.toLowerCase().contains('healthy');
-      final sevPct = (diag['severity_percent'] as num?)?.toDouble() ?? 30.0;
-      final severity = sevPct > 60 ? 'critical' : (sevPct > 35 ? 'high' : (sevPct > 15 ? 'medium' : 'low'));
-      final source = (aiRes['source'] ?? 'gemini-2.5-flash').toString();
-
-      return DiagnosisResult(
-        diseaseName: diseaseEn,
-        diseaseNameHi: diseaseHi,
-        confidence: confidence,
-        severity: severity,
-        treatmentEn: chem,
-        treatmentHi: org,
-        cropType: crop,
-        isHealthy: isHealthy,
-        modelVersion: source,
-        pathogen: diag['pathogen']?.toString() ?? 'Fungus',
-        chemicalCure: chem,
-        organicCure: org,
-        immediateAction: action,
-        spotDosage: spotDose,
+      final detail = response.body.length > 300
+          ? '${response.body.substring(0, 300)}?'
+          : response.body;
+      debugPrint('Local crop classifier returned HTTP ${response.statusCode}: $detail');
+      return _unavailableResult(
+        cropHint,
+        reason: 'The local crop classifier returned HTTP ${response.statusCode}. '
+            'Check that the backend is running and both model files loaded.',
       );
     } catch (e) {
-      debugPrint('AI Leaf Diagnosis error, engaging local fallback: $e');
+      debugPrint('Local /api/diagnose request failed: $e');
+      return _unavailableResult(
+        cropHint,
+        reason: 'Could not reach the local crop classifier at ${ApiConfig.diagnoseEndpoint}. '
+            'Start the backend and retry. Details: $e',
+      );
     }
-
-    // Deterministic ICAR Fallback
-    const fallbackDisease = 'Wheat___Yellow_rust';
-    final hindiName = diseaseNamesHindi[fallbackDisease] ?? 'गेहूं - पीली जंग';
-    final treatment = treatments[fallbackDisease];
-
-    return DiagnosisResult(
-      diseaseName: fallbackDisease,
-      diseaseNameHi: hindiName,
-      confidence: 0.92,
-      severity: 'high',
-      treatmentEn: treatment?['en'] ?? 'Spray Propiconazole (0.1%) at first symptom.',
-      treatmentHi: treatment?['hi'] ?? 'प्रोपीकोनाजोल (0.1%) का छिड़काव करें।',
-      cropType: 'wheat',
-      isHealthy: false,
-      modelVersion: 'icar_offline_v2.4',
-      pathogen: 'Puccinia striiformis',
-      chemicalCure: 'Propiconazole 25% EC (Tilt) @ 1ml/L water (200ml/acre).',
-      organicCure: 'नीम तेल (1500 ppm) 5ml/L + ट्राइकोडर्मा विरिडी 5g/L।',
-      immediateAction: 'खेत से अतिरिक्त नमी निकालें और संक्रमित पत्तियां नष्ट करें।',
-      spotDosage: 1.0,
-    );
   }
 }
 

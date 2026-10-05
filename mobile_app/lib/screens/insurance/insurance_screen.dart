@@ -1,12 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
+import 'package:camera_macos/camera_macos.dart' as macos_cam;
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
+import '../../services/device_permission_service.dart';
 import '../../services/insurance_recorder.dart';
+import '../../widgets/permission_palette_dialog.dart';
 
 /// Krishi-Saarthi Insurance Evidence Locker (बीमा साक्ष्य लॉकर)
 /// Strict Tamper-Proof & Non-Repudiable Evidence Architecture for PMFBY.
@@ -26,6 +32,9 @@ class InsuranceScreen extends StatefulWidget {
   @override
   State<InsuranceScreen> createState() => _InsuranceScreenState();
 }
+
+/// Global cache of the last recorded evidence video path in the session
+String? _lastRecordedVideoPath;
 
 class _InsuranceScreenState extends State<InsuranceScreen>
     with TickerProviderStateMixin {
@@ -49,11 +58,13 @@ class _InsuranceScreenState extends State<InsuranceScreen>
   List<CameraDescription> _availableCameras = [];
   int _selectedCameraIndex = 0;
   CameraController? _cameraController;
+  macos_cam.CameraMacOSController? _macCameraController;
+  bool _macCameraReady = false;
+  bool get _isMacOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
   bool _isAudioEnabled = true;
   bool _isSimulatedCameraMode = false;
   bool _isCameraInitializing = false;
   String? _cameraErrorMessage;
-  String? _lastRecordedVideoPath;
   bool _isTorchOn = false;
   bool _showGrid = true;
   double _zoomLevel = 1.0;
@@ -138,6 +149,12 @@ class _InsuranceScreenState extends State<InsuranceScreen>
       });
     }
 
+    // Auto-link any recorded videos on disk to vault items and refresh
+    await _recorder.autoLinkRecordedVideos();
+    if (mounted) {
+      setState(() {});
+    }
+
     // 2. Request Camera & Microphone access immediately
     await _initializeRealCamera();
   }
@@ -149,8 +166,24 @@ class _InsuranceScreenState extends State<InsuranceScreen>
       _cameraErrorMessage = null;
     });
 
-    // Request permissions upfront if mobile
+    // Request real hardware permissions upfront
     await _recorder.requestMediaPermissions();
+
+    // On macOS desktop, initialize via camera_macos
+    if (_isMacOS) {
+      final hasCam = await DevicePermissionService.checkCamera();
+      final hasMic = await DevicePermissionService.checkMicrophone();
+      if (mounted) {
+        setState(() {
+          _isCameraInitializing = false;
+          _isAudioEnabled = hasMic;
+          // If camera permission granted, hardware mode is active!
+          _isSimulatedCameraMode = !hasCam;
+          _cameraErrorMessage = hasCam ? null : 'कैमरा अनुमति आवश्यक है';
+        });
+      }
+      return;
+    }
 
     try {
       final cameras = await availableCameras();
@@ -161,8 +194,7 @@ class _InsuranceScreenState extends State<InsuranceScreen>
           setState(() {
             _isCameraInitializing = false;
             _isSimulatedCameraMode = true;
-            _cameraErrorMessage =
-                'कोई भौतिक कैमरा नहीं मिला। सजीव फील्ड कैमरा सिम्युलेटर सक्रिय किया गया।';
+            _cameraErrorMessage = null;
           });
         }
         return;
@@ -215,13 +247,12 @@ class _InsuranceScreenState extends State<InsuranceScreen>
         });
       }
     } catch (e) {
-      debugPrint('Camera initialization error: $e');
+      debugPrint('Camera initialization info: $e');
       if (mounted) {
         setState(() {
           _isCameraInitializing = false;
           _isSimulatedCameraMode = true;
-          _cameraErrorMessage =
-              'कैमरा अनुमति अवरुद्ध है या डिवाइस व्यस्त है। सजीव फील्ड कैमरा सक्रिय है।';
+          _cameraErrorMessage = null;
         });
       }
     }
@@ -229,10 +260,13 @@ class _InsuranceScreenState extends State<InsuranceScreen>
 
   Future<void> _switchCamera() async {
     if (_availableCameras.length <= 1) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('केवल 1 कैमरा डिवाइस उपलब्ध है।'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: const Text('केवल 1 कैमरा डिवाइस उपलब्ध है।'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -246,11 +280,15 @@ class _InsuranceScreenState extends State<InsuranceScreen>
   void _toggleCameraMode() {
     setState(() {
       _isSimulatedCameraMode = !_isSimulatedCameraMode;
-      if (!_isSimulatedCameraMode &&
-          (_cameraController == null || !_cameraController!.value.isInitialized)) {
-        _initializeRealCamera();
+      if (!_isSimulatedCameraMode) {
+        if (_isMacOS) {
+          _isCameraInitializing = false;
+        } else if (_cameraController == null || !_cameraController!.value.isInitialized) {
+          _initializeRealCamera();
+        }
       }
     });
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(_isSimulatedCameraMode
@@ -258,12 +296,24 @@ class _InsuranceScreenState extends State<InsuranceScreen>
             : '📹 हार्डवेयर कैमरा मोड सक्रिय'),
         duration: const Duration(seconds: 2),
         backgroundColor: _isSimulatedCameraMode ? colorAmber : colorPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   void _toggleTorch() async {
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
+    if (_isMacOS && _macCameraController != null) {
+      try {
+        _isTorchOn = !_isTorchOn;
+        await _macCameraController!.setFlashMode(
+          _isTorchOn ? macos_cam.FlashMode.on : macos_cam.FlashMode.off,
+        );
+        setState(() {});
+      } catch (e) {
+        debugPrint('macOS Flash error: $e');
+      }
+    } else if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         _isTorchOn = !_isTorchOn;
         await _cameraController!.setFlashMode(
@@ -319,29 +369,56 @@ class _InsuranceScreenState extends State<InsuranceScreen>
     _focusController.dispose();
     _simulatedWindController.dispose();
     _cameraController?.dispose();
+    _macCameraController?.destroy();
     super.dispose();
   }
 
   void _startRecording() async {
     HapticFeedback.heavyImpact();
 
-    // Check if camera is in hardware mode and ready; if not, automatically proceed with simulation
-    if (!_isSimulatedCameraMode &&
-        (_cameraController == null || !_cameraController!.value.isInitialized)) {
-      await _initializeRealCamera();
-      if (_cameraController == null || !_cameraController!.value.isInitialized) {
-        // Fallback gracefully so recording NEVER freezes or refuses to record
-        setState(() {
-          _isSimulatedCameraMode = true;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('कैमरा हार्डवेयर अनुपलब्ध - सजीव फील्ड सिम्युलेटर में रिकॉर्डिंग जारी...'),
-              backgroundColor: colorAmber,
-              duration: Duration(seconds: 2),
-            ),
-          );
+    if (_isMacOS) {
+      if (!_isSimulatedCameraMode && _macCameraController != null) {
+        try {
+          // Native camera_macos saves into approved sandbox Caches/output.mp4 with H.264 video & AAC audio
+          await _macCameraController!.recordVideo(enableAudio: true);
+        } catch (e) {
+          debugPrint('macOS native video recording start warning: $e');
+        }
+      }
+    } else {
+      // Check if camera is in hardware mode and ready; if not, automatically proceed with simulation
+      if (!_isSimulatedCameraMode &&
+          (_cameraController == null || !_cameraController!.value.isInitialized)) {
+        await _initializeRealCamera();
+        if (_cameraController == null || !_cameraController!.value.isInitialized) {
+          // Fallback gracefully so recording NEVER freezes or refuses to record
+          setState(() {
+            _isSimulatedCameraMode = true;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('कैमरा हार्डवेयर अनुपलब्ध - सजीव फील्ड सिम्युलेटर में रिकॉर्डिंग जारी...'),
+                backgroundColor: colorAmber,
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          }
+        }
+      }
+
+      if (!_isSimulatedCameraMode &&
+          _cameraController != null &&
+          _cameraController!.value.isInitialized) {
+        try {
+          if (!_cameraController!.value.isRecordingVideo) {
+            await _cameraController!.startVideoRecording();
+          }
+        } catch (e) {
+          debugPrint('Native video recording start warning: $e');
         }
       }
     }
@@ -359,18 +436,6 @@ class _InsuranceScreenState extends State<InsuranceScreen>
       _liveHashRolling = 'e3b0c442...98fc';
       _lastRecordedVideoPath = null;
     });
-
-    if (!_isSimulatedCameraMode &&
-        _cameraController != null &&
-        _cameraController!.value.isInitialized) {
-      try {
-        if (!_cameraController!.value.isRecordingVideo) {
-          await _cameraController!.startVideoRecording();
-        }
-      } catch (e) {
-        debugPrint('Native video recording start warning: $e');
-      }
-    }
 
     _recorder.startRecording(
       gpsLat: _currentLat,
@@ -418,7 +483,49 @@ class _InsuranceScreenState extends State<InsuranceScreen>
     setState(() => _isRecording = false);
 
     String? videoPath;
-    if (!_isSimulatedCameraMode &&
+    if (_isMacOS && !_isSimulatedCameraMode && _macCameraController != null) {
+      try {
+        final macFile = await _macCameraController!.stopRecording();
+        String? rawPath = macFile?.url;
+
+        // If rawPath is null or missing, look for output.mp4 in the sandbox caches directory
+        if (rawPath == null || rawPath.isEmpty || !File(rawPath).existsSync()) {
+          try {
+            final appDoc = await getApplicationDocumentsDirectory();
+            final cacheDir = Directory('${appDoc.parent.path}/Library/Caches');
+            final defaultOutput = File('${cacheDir.path}/output.mp4');
+            if (defaultOutput.existsSync() && defaultOutput.lengthSync() > 1000) {
+              rawPath = defaultOutput.path;
+            }
+          } catch (_) {}
+        }
+
+        if (rawPath != null && File(rawPath).existsSync()) {
+          try {
+            final parentDir = File(rawPath).parent;
+            final permanentFile = File('${parentDir.path}/pmfby_${DateTime.now().millisecondsSinceEpoch}.mp4');
+            await File(rawPath).copy(permanentFile.path);
+            videoPath = permanentFile.path;
+          } catch (e) {
+            videoPath = rawPath;
+          }
+        } else if (macFile?.bytes != null && macFile!.bytes!.isNotEmpty) {
+          try {
+            final appDoc = await getApplicationDocumentsDirectory();
+            final permanentFile = File('${appDoc.path}/pmfby_${DateTime.now().millisecondsSinceEpoch}.mp4');
+            await permanentFile.writeAsBytes(macFile.bytes!, flush: true);
+            videoPath = permanentFile.path;
+          } catch (err) {
+            debugPrint('Error writing macFile bytes: $err');
+          }
+        }
+
+        _lastRecordedVideoPath = videoPath;
+        debugPrint('📹 Recorded video path ready: $videoPath');
+      } catch (e) {
+        debugPrint('macOS video recording stop warning: $e');
+      }
+    } else if (!_isSimulatedCameraMode &&
         _cameraController != null &&
         _cameraController!.value.isRecordingVideo) {
       try {
@@ -448,6 +555,7 @@ class _InsuranceScreenState extends State<InsuranceScreen>
     );
 
     if (mounted) {
+      setState(() {}); // Immediately update vault UI so new card is at the top!
       _showSealedCertificateModal(sealedItem);
     }
   }
@@ -489,11 +597,14 @@ class _InsuranceScreenState extends State<InsuranceScreen>
               final deleted = _recorder.deleteVaultItem(item.id);
               if (deleted) {
                 setState(() {});
+                ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('🗑️ साक्ष्य रिकॉर्ड (${item.id}) हटा दिया गया!'),
                     backgroundColor: colorAlert,
                     duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 );
               }
@@ -538,6 +649,15 @@ class _InsuranceScreenState extends State<InsuranceScreen>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.security_rounded, color: Colors.white),
+            tooltip: 'हार्डवेयर अनुमतियां (Hardware Permissions)',
+            onPressed: () {
+              PermissionPaletteDialog.show(context, onPermissionsUpdated: () {
+                _initCameraAndTelemetry();
+              });
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.shield_outlined, color: Colors.white),
             tooltip: 'सुरक्षा मानक (Security Specs)',
@@ -718,8 +838,9 @@ class _InsuranceScreenState extends State<InsuranceScreen>
   // 2. HARDWARE & PERMISSION STATUS STRIP (With Multi-Camera & Dual Mode)
   // -------------------------------------------------------------
   Widget _buildHardwareStatusStrip() {
-    final bool isCameraReady = _cameraController != null &&
-        _cameraController!.value.isInitialized;
+    final bool isCameraReady = _isMacOS
+        ? (!_isSimulatedCameraMode && _macCameraReady)
+        : (_cameraController != null && _cameraController!.value.isInitialized);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -768,9 +889,11 @@ class _InsuranceScreenState extends State<InsuranceScreen>
                       children: [
                         Text(
                           !_isSimulatedCameraMode
-                              ? (isCameraReady
-                                  ? 'कैमरा ${_selectedCameraIndex + 1}/${_availableCameras.isNotEmpty ? _availableCameras.length : 1} (सक्रिय)'
-                                  : 'कैमरा खोजें (Tap to Retry)')
+                              ? (_isMacOS
+                                  ? 'हार्डवेयर वेबकैम (सक्रिय)'
+                                  : (isCameraReady
+                                      ? 'कैमरा ${_selectedCameraIndex + 1}/${_availableCameras.isNotEmpty ? _availableCameras.length : 1} (सक्रिय)'
+                                      : 'कैमरा खोजें (Tap to Retry)'))
                               : 'सजीव फील्ड सिम्युलेटर',
                           style: TextStyle(
                             fontSize: 10.5,
@@ -798,7 +921,7 @@ class _InsuranceScreenState extends State<InsuranceScreen>
                       ],
                     ),
                   ),
-                  if (_availableCameras.length > 1 && !_isSimulatedCameraMode)
+                  if (!_isMacOS && _availableCameras.length > 1 && !_isSimulatedCameraMode)
                     IconButton(
                       icon: const Icon(Icons.flip_camera_ios, size: 14, color: colorPrimary),
                       tooltip: 'कैमरा बदलें (Flip Camera)',
@@ -912,8 +1035,9 @@ class _InsuranceScreenState extends State<InsuranceScreen>
     final istNow =
         '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')} IST';
 
-    final bool isCameraReady = _cameraController != null &&
-        _cameraController!.value.isInitialized;
+    final bool isCameraReady = _isMacOS
+        ? (!_isSimulatedCameraMode && _macCameraReady)
+        : (_cameraController != null && _cameraController!.value.isInitialized);
 
     return Column(
       children: [
@@ -941,7 +1065,30 @@ class _InsuranceScreenState extends State<InsuranceScreen>
             child: Stack(
               children: [
                 // Layer 1: Live Hardware Video Stream OR Realistic Field Simulator
-                if (!_isSimulatedCameraMode && isCameraReady)
+                if (!_isSimulatedCameraMode && _isMacOS)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTapUp: _handleViewfinderTap,
+                      child: ClipRect(
+                        child: macos_cam.CameraMacOSView(
+                          fit: BoxFit.cover,
+                          cameraMode: macos_cam.CameraMacOSMode.video,
+                          enableAudio: true,
+                          onCameraInizialized: (ctrl) {
+                            _macCameraController = ctrl;
+                            _macCameraReady = true;
+                            _isAudioEnabled = true;
+                            if (mounted) setState(() {});
+                          },
+                          onCameraLoading: (_) => const Center(
+                            child: CircularProgressIndicator(color: colorPrimary),
+                          ),
+                          onCameraDestroyed: () => Container(color: Colors.black),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (!_isSimulatedCameraMode && isCameraReady)
                   Positioned.fill(
                     child: GestureDetector(
                       onTapUp: _handleViewfinderTap,
@@ -1912,11 +2059,14 @@ class _InsuranceScreenState extends State<InsuranceScreen>
                     constraints: const BoxConstraints(),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: item.videoSha256));
+                      ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ SHA-256 हैश क्लिपबोर्ड पर कॉपी हुआ!'),
+                        SnackBar(
+                          content: const Text('✅ SHA-256 हैश क्लिपबोर्ड पर कॉपी हुआ!'),
                           backgroundColor: colorPrimary,
-                          duration: Duration(seconds: 2),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       );
                     },
@@ -2084,7 +2234,12 @@ class _InsuranceScreenState extends State<InsuranceScreen>
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.play_circle_fill, size: 18),
+                label: const Text(
+                  'साक्ष्य वीडियो देखें (Preview Video)',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colorPrimary,
                   foregroundColor: Colors.white,
@@ -2095,11 +2250,29 @@ class _InsuranceScreenState extends State<InsuranceScreen>
                 ),
                 onPressed: () {
                   Navigator.pop(context);
+                  _showVideoPreviewModal(item);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colorStoneMuted,
+                  side: const BorderSide(color: colorHairline),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
                   setState(() {});
                 },
                 child: const Text(
-                  'वॉल्ट में सुरक्षित सहेजें (Sealed)',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  'वॉल्ट में सुरक्षित सहेजें (Close & Save)',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -2227,11 +2400,14 @@ class _PlayableEvidencePlayerSheetState
     extends State<_PlayableEvidencePlayerSheet>
     with SingleTickerProviderStateMixin {
   bool _isPlaying = true;
+  bool _isMuted = false;
   double _currentProgress = 0.0;
   Timer? _playbackTimer;
   late AnimationController _watermarkPulse;
   VideoPlayerController? _videoPlayerController;
   bool _isVideoInitialized = false;
+  bool _hasFailedLoading = false;
+  String? _resolvedVideoPath;
 
   @override
   void initState() {
@@ -2244,24 +2420,110 @@ class _PlayableEvidencePlayerSheetState
     _initRealVideoPlayer();
   }
 
-  void _initRealVideoPlayer() {
-    final videoPath = widget.item.videoPath;
+  void _initRealVideoPlayer() async {
+    String? videoPath = widget.item.videoPath;
+    debugPrint('🎥 _initRealVideoPlayer called with initial videoPath: $videoPath');
+
+    // Auto-resolve: if videoPath is null, empty or missing from disk, find any recorded mp4 in sandbox
+    if (!kIsWeb &&
+        (videoPath == null ||
+            videoPath.isEmpty ||
+            !File(videoPath.replaceFirst('file://', '')).existsSync())) {
+      try {
+        if (_lastRecordedVideoPath != null &&
+            File(_lastRecordedVideoPath!).existsSync() &&
+            File(_lastRecordedVideoPath!).lengthSync() > 1000) {
+          videoPath = _lastRecordedVideoPath;
+        } else {
+          final home = Platform.environment['HOME'] ?? '';
+          final appDoc = await getApplicationDocumentsDirectory();
+          final cacheDir = Directory('${appDoc.parent.path}/Library/Caches');
+          final sandboxCache = Directory('$home/Library/Containers/com.krishisaarthi.krishiSaarthi/Data/Library/Caches');
+
+          final List<File> candidates = [];
+          void scanDir(Directory d) {
+            if (d.existsSync()) {
+              final mp4s = d.listSync().whereType<File>().where((f) => f.path.endsWith('.mp4')).toList();
+              mp4s.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+              candidates.addAll(mp4s);
+            }
+          }
+
+          // Prioritize known sample and current recordings
+          final directChecks = [
+            File('${sandboxCache.path}/output.mp4'),
+            File('${cacheDir.path}/output.mp4'),
+            File('${sandboxCache.path}/pmfby_evidence_sample.mp4'),
+            File('${cacheDir.path}/pmfby_evidence_sample.mp4'),
+          ];
+          for (final dc in directChecks) {
+            if (dc.existsSync() && dc.lengthSync() > 1000) {
+              candidates.add(dc);
+            }
+          }
+
+          scanDir(cacheDir);
+          scanDir(sandboxCache);
+          scanDir(appDoc);
+
+          for (final f in candidates) {
+            if (f.existsSync() && f.lengthSync() > 1000) {
+              videoPath = f.path;
+              debugPrint('🔍 Auto-resolved local recorded video: $videoPath (${f.lengthSync()} bytes)');
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error searching for local candidate video: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _resolvedVideoPath = videoPath;
+      });
+    }
+
     if (videoPath != null && videoPath.isNotEmpty) {
       try {
-        final uri = Uri.parse(videoPath);
-        _videoPlayerController = VideoPlayerController.networkUrl(uri);
-        _videoPlayerController!.initialize().then((_) {
-          if (mounted) {
-            setState(() {
-              _isVideoInitialized = true;
-            });
-            _videoPlayerController!.setLooping(true);
-            _videoPlayerController!.play();
+        VideoPlayerController controller;
+        if (kIsWeb ||
+            videoPath.startsWith('http://') ||
+            videoPath.startsWith('https://') ||
+            videoPath.startsWith('blob:')) {
+          controller = VideoPlayerController.networkUrl(Uri.parse(videoPath));
+        } else {
+          String cleanPath = videoPath;
+          if (cleanPath.startsWith('file://')) {
+            cleanPath = Uri.parse(cleanPath).toFilePath();
           }
-        }).catchError((err) {
-          debugPrint('Real video player fallback: $err');
-          _startSimulatedPlayback();
-        });
+          final file = File(cleanPath);
+          if (!file.existsSync() || file.lengthSync() == 0) {
+            debugPrint('⚠️ Local video file does not exist or empty: $cleanPath');
+            if (mounted) setState(() => _hasFailedLoading = true);
+            if (widget.item.recordingMode == 'simulated') {
+              _startSimulatedPlayback();
+            }
+            return;
+          }
+          debugPrint('🎬 Initializing local VideoPlayerController.file: $cleanPath (${file.lengthSync()} bytes)');
+          controller = VideoPlayerController.file(file);
+        }
+
+        _videoPlayerController = controller;
+        await _videoPlayerController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isVideoInitialized = true;
+            _hasFailedLoading = false;
+            _isPlaying = true;
+          });
+          await _videoPlayerController!.setVolume(1.0);
+          await _videoPlayerController!.setLooping(true);
+          await _videoPlayerController!.play();
+          debugPrint('▶️ Real video and audio playback started successfully! Duration: ${_videoPlayerController!.value.duration.inSeconds}s');
+        }
 
         _videoPlayerController!.addListener(() {
           if (mounted &&
@@ -2278,10 +2540,19 @@ class _PlayableEvidencePlayerSheetState
         return;
       } catch (e) {
         debugPrint('Video player setup exception: $e');
+        if (mounted) {
+          setState(() => _hasFailedLoading = true);
+        }
       }
     }
 
-    _startSimulatedPlayback();
+    if (widget.item.recordingMode == 'simulated') {
+      _startSimulatedPlayback();
+    } else {
+      if (mounted) {
+        setState(() => _hasFailedLoading = true);
+      }
+    }
   }
 
   void _startSimulatedPlayback() {
@@ -2314,6 +2585,13 @@ class _PlayableEvidencePlayerSheetState
     }
   }
 
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _videoPlayerController?.setVolume(_isMuted ? 0.0 : 1.0);
+  }
+
   @override
   void dispose() {
     _playbackTimer?.cancel();
@@ -2325,7 +2603,11 @@ class _PlayableEvidencePlayerSheetState
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final totalSec = item.durationSeconds;
+    final totalSec = _isVideoInitialized &&
+            _videoPlayerController != null &&
+            _videoPlayerController!.value.duration.inSeconds > 0
+        ? _videoPlayerController!.value.duration.inSeconds
+        : (item.durationSeconds > 0 ? item.durationSeconds : 1);
     final currentSec = (_currentProgress * totalSec).toInt();
 
     return Container(
@@ -2377,6 +2659,17 @@ class _PlayableEvidencePlayerSheetState
                   ),
                 ),
                 IconButton(
+                  icon: Icon(
+                    _isMuted ? Icons.volume_off : Icons.volume_up,
+                    color: _isMuted ? Colors.redAccent : const Color(0xFF69F0AE),
+                    size: 20,
+                  ),
+                  tooltip: _isMuted
+                      ? 'ध्वनि चालू करें (Unmute Audio)'
+                      : 'ध्वनि बंद करें (Mute Audio)',
+                  onPressed: _toggleMute,
+                ),
+                IconButton(
                   icon: const Icon(Icons.close, color: Colors.white70),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -2399,7 +2692,7 @@ class _PlayableEvidencePlayerSheetState
                 borderRadius: BorderRadius.circular(15),
                 child: Stack(
                   children: [
-                    // Real recorded video if initialized, otherwise simulated field canvas
+                    // Real recorded video if initialized, otherwise loading/retry or simulated field canvas
                     Positioned.fill(
                       child: _isVideoInitialized && _videoPlayerController != null
                           ? Center(
@@ -2412,14 +2705,70 @@ class _PlayableEvidencePlayerSheetState
                                 child: VideoPlayer(_videoPlayerController!),
                               ),
                             )
-                          : CustomPaint(
-                              painter: _FarmEvidenceVideoPainter(
-                                progress: _currentProgress,
-                                cropName: item.cropName,
-                                claimType: item.claimType,
-                                damagePercentage: item.damagePercentage,
-                              ),
-                            ),
+                          : widget.item.recordingMode == 'simulated'
+                              ? CustomPaint(
+                                  painter: _FarmEvidenceVideoPainter(
+                                    progress: _currentProgress,
+                                    cropName: item.cropName,
+                                    claimType: item.claimType,
+                                    damagePercentage: item.damagePercentage,
+                                  ),
+                                )
+                              : !_hasFailedLoading
+                                  ? const Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(
+                                            color: Color(0xFF4CAF50),
+                                            strokeWidth: 3,
+                                          ),
+                                          SizedBox(height: 14),
+                                          Text(
+                                            'साक्ष्य वीडियो व ऑडियो लोड हो रहा है...',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20.0),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.videocam_off, color: Colors.orangeAccent, size: 40),
+                                            const SizedBox(height: 10),
+                                            const Text(
+                                              'कैमरा रिकॉर्डिंग लोड नहीं हो सकी',
+                                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'फाइल पाथ: ${_resolvedVideoPath ?? widget.item.videoPath ?? "खोज जारी..."}',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _hasFailedLoading = false;
+                                                });
+                                                _initRealVideoPlayer();
+                                              },
+                                              icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                                              label: const Text('पुनः प्रयास करें (Retry Playback)', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                     ),
 
                     // Official Watermark Stamp (Center Overlay)

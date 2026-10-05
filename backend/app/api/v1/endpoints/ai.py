@@ -8,6 +8,7 @@ from sqlalchemy import select
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import hashlib
+import os
 
 from app.db.session import get_db
 from app.models.farmer import Farmer
@@ -24,6 +25,7 @@ class ChatRequest(BaseModel):
     language: str = Field("hi", description="Language code ('hi', 'en', 'mr', 'pa')")
     history: Optional[List[Dict[str, str]]] = Field(None, description="Prior conversation history")
     api_key: Optional[str] = Field(None, description="Optional Google Gemini API Key override")
+    image_base64: Optional[str] = Field(None, description="Optional base64 encoded photo for multimodal chat")
 
 
 class DiagnoseRequest(BaseModel):
@@ -48,7 +50,8 @@ async def chat_agronomist(req: ChatRequest, x_api_key: Optional[str] = Header(No
         message=req.message,
         language=req.language,
         history=req.history,
-        override_key=effective_key
+        override_key=effective_key,
+        image_base64=req.image_base64,
     )
     return res
 
@@ -67,6 +70,10 @@ async def diagnose_leaf(
         language=req.language,
         override_key=effective_key
     )
+
+    # If botanical leaf guard rejected the image, return immediately without polluting DB telemetry
+    if res.get("status") == "no_leaf_detected" or res.get("is_leaf_detected") is False or res.get("success") is False:
+        return res
 
     # Persist live diagnosis to database and disease telemetry for Kriging vector maps
     try:
@@ -167,6 +174,13 @@ async def get_key_status(x_api_key: Optional[str] = Header(None)):
 async def configure_api_key(req: ConfigureKeyRequest):
     """Runtime configuration of Gemini API Key for demo and local deployments."""
     cleaned = req.api_key.strip()
+    if not cleaned or cleaned.lower() in ["reset", "none", "clear"]:
+        AIService.set_runtime_api_key(None)
+        return {
+            "success": True,
+            "message": "API Key reset to default environment settings",
+            "masked_key": None
+        }
     if len(cleaned) < 10:
         raise HTTPException(status_code=400, detail="Invalid API Key format")
     AIService.set_runtime_api_key(cleaned)
@@ -189,6 +203,100 @@ async def get_agricultural_knowledge():
 
 @router.get("/quota-status")
 async def get_quota_status():
-    """Returns Gemini API sliding window quota (15 requests/hour free-tier protection)."""
+    """Returns Gemini API sliding window quota status."""
     return gemini_limiter.get_status()
 
+
+class SpeakRequest(BaseModel):
+    text: str = Field(..., description="Text to speak aloud in Indian language")
+    language: str = Field("hi", description="Language code ('hi', 'pa', 'mr', 'ta', 'te', 'bn', 'gu', 'kn', 'en')")
+    play_on_host: bool = Field(True, description="Whether to play on host system audio (macOS speakers)")
+
+
+@router.post("/speak")
+async def speak_text_aloud(req: SpeakRequest):
+    """Speaks text using Google Multilingual Neural Voice (gTTS) and macOS afplay/say."""
+    from app.services.tts_service import TTSService
+    return TTSService.speak_on_mac(req.text, req.language)
+
+
+@router.get("/tts")
+async def stream_tts_audio(text: str, language: str = "hi"):
+    """Streams synthesized MP3 audio for web or mobile audio player."""
+    from fastapi.responses import FileResponse
+    from app.services.tts_service import TTSService
+    mp3_path = TTSService.synthesize_speech_file(text, language)
+    if mp3_path and os.path.exists(mp3_path):
+        return FileResponse(mp3_path, media_type="audio/mpeg", filename="speech.mp3")
+    raise HTTPException(status_code=500, detail="Speech synthesis failed")
+
+
+@router.post("/stop-speak")
+async def stop_speech_playback():
+    """Stops all active audio playback."""
+    from app.services.tts_service import TTSService
+    TTSService.stop_speaking()
+    return {"success": True, "stopped": True}
+
+
+class VoiceAnalyzeRequest(BaseModel):
+    language: str = Field("hi", description="Language code")
+    language_name: Optional[str] = Field(None, description="Language display name")
+    audio_base64: Optional[str] = Field(None, description="Optional base64 encoded audio from client")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(None, description="Prior conversation history")
+    api_key: Optional[str] = Field(None, description="Optional Google Gemini API Key override")
+
+
+@router.post("/voice/record-start")
+async def voice_record_start():
+    """Starts microphone recording on host machine."""
+    from app.services.voice_recorder_service import VoiceRecorderService
+    return VoiceRecorderService.start_recording()
+
+
+@router.post("/voice/record-stop")
+async def voice_record_stop():
+    """Stops/pauses microphone recording on host machine."""
+    from app.services.voice_recorder_service import VoiceRecorderService
+    return VoiceRecorderService.stop_recording()
+
+
+@router.get("/voice/record-status")
+async def voice_record_status():
+    """Gets current status of microphone recording."""
+    from app.services.voice_recorder_service import VoiceRecorderService
+    return VoiceRecorderService.get_status()
+
+
+@router.post("/voice/analyze")
+async def voice_analyze_recording(req: VoiceAnalyzeRequest, x_api_key: Optional[str] = Header(None)):
+    """Transcribes farmer speech and returns ICAR agricultural answer via Gemini 2.5 Flash."""
+    from app.services.voice_recorder_service import VoiceRecorderService
+    effective_key = req.api_key or x_api_key
+    return await VoiceRecorderService.analyze_recording(
+        language=req.language,
+        language_name=req.language_name,
+        conversation_history=req.conversation_history,
+        audio_base64=req.audio_base64,
+        override_key=effective_key
+    )
+
+
+class VoiceTranscribeRequest(BaseModel):
+    language: str = Field("hi", description="Language code")
+    language_name: Optional[str] = Field(None, description="Language display name")
+    audio_base64: Optional[str] = Field(None, description="Optional base64 encoded audio from client")
+    api_key: Optional[str] = Field(None, description="Optional Google Gemini API Key override")
+
+
+@router.post("/voice/transcribe")
+async def voice_transcribe_recording(req: VoiceTranscribeRequest, x_api_key: Optional[str] = Header(None)):
+    """Transcribes user speech into written text for the Ask Something input bar."""
+    from app.services.voice_recorder_service import VoiceRecorderService
+    effective_key = req.api_key or x_api_key
+    return await VoiceRecorderService.transcribe_recording(
+        language=req.language,
+        language_name=req.language_name,
+        audio_base64=req.audio_base64,
+        override_key=effective_key
+    )

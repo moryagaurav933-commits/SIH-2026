@@ -38,10 +38,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _syncStatusText = 'सिंक सफल: 3 रिकॉर्ड्स मर्कल ट्री द्वारा अपडेट हुए';
       });
 
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🔄 स्थानीय डेटाबेस (SQLCipher) सफलतापूर्वक सिंक हो गया!'),
-          backgroundColor: Color(0xFF2E7D32),
+        SnackBar(
+          content: const Text('🔄 स्थानीय डेटाबेस (SQLCipher) सफलतापूर्वक सिंक हो गया!'),
+          backgroundColor: const Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }

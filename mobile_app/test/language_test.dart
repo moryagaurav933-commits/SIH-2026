@@ -109,19 +109,27 @@ void main() {
         AppTranslations.get('dock_mandi', AppLanguage.en),
         'Mandi',
       );
+      expect(
+        AppTranslations.get('dock_community', AppLanguage.hi),
+        'समुदाय',
+      );
+      expect(
+        AppTranslations.get('dock_features', AppLanguage.hi),
+        'सुविधाएं',
+      );
 
       // 4. Drawer Feature
       expect(
         AppTranslations.get('drawer_f1_title', AppLanguage.hinglish),
-        'AI Leaf Disease Scanner',
+        'Crop Selection & Leaf Scan',
       );
       expect(
         AppTranslations.get('drawer_f1_title', AppLanguage.hi),
-        'AI पत्ती रोग स्कैनर',
+        'फसल चयन व AI रोग जांच',
       );
       expect(
         AppTranslations.get('drawer_f1_title', AppLanguage.en),
-        'AI Leaf Disease Scanner',
+        'Crop Selection & Leaf Scan',
       );
     });
   });

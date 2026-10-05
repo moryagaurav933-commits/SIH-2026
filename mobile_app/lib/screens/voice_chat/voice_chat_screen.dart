@@ -1,19 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/language_provider.dart';
+import '../../services/api_config.dart';
 import '../../services/llm_service.dart';
+import '../../services/device_permission_service.dart';
+import '../../widgets/permission_palette_dialog.dart';
 import 'camera_capture_sheet.dart';
-
 import 'speech_bridge.dart' as speech_bridge;
 
 /// Krishi Copilot (कृषि कॉपायलट) — Pure Dynamic AI Conversational Voice & Text Companion.
 /// Zero predefined canned questions: evaluates all questions with 100% free-will Gemini 2.5 Flash.
-/// Responds in natural human voice (Sherpa style) in the user's chosen language.
+/// Responds in natural human voice in the user's chosen language.
 class VoiceChatScreen extends StatefulWidget {
   final String? initialContext;
   final String? initialDiseaseName;
@@ -34,23 +36,19 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
   late String _activeSpeechLocale; // e.g., 'hi-IN', 'en-IN', 'pa-IN', 'mr-IN'
 
   // State flags
-  bool _isListening = false;
   bool _isSpeaking = false;
   bool _isThinking = false;
   bool _isAudioMuted = false;
   bool _initializedFromProvider = false;
 
-  // Real-time transcribed text
-  String _liveTranscription =
-      'Tap the microphone to speak...\nमाइक पर टैप करके अपनी बोली में पूछें...';
-  String _statusLine = 'Tap microphone to speak | बोलकर बात करें';
+  // Voice recording state in bottom bar
+  bool _isRecording = false;
+  bool _isTranscribing = false;
+  int _recordingSeconds = 0;
+  Timer? _recordingTimer;
 
-  // Animation controllers
-  late AnimationController _waveformController;
+  // Animation controller for mic pulsation while recording
   late AnimationController _pulseController;
-  Timer? _sttPollingTimer;
-  DateTime? _lastSpeechTimestamp;
-  String _lastTranscribedText = '';
 
   // Conversation history
   final ScrollController _scrollController = ScrollController();
@@ -80,16 +78,10 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
     _activeLangCode = 'hi';
     _activeSpeechLocale = 'hi-IN';
 
-    // Waveform oscillating animation
-    _waveformController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 950),
-    )..repeat();
-
-    // Pulsating microphone button animation
+    // Pulsating microphone button animation during recording
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1050),
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
   }
 
@@ -118,15 +110,13 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
 
   @override
   void dispose() {
-    _waveformController.dispose();
     _pulseController.dispose();
-    _sttPollingTimer?.cancel();
+    _recordingTimer?.cancel();
     _scrollController.dispose();
     _textController.dispose();
     _stopSpeechSynthesis();
     super.dispose();
   }
-
 
   String _getDiagnosisGreetingText(String code, String diseaseName) {
     switch (code) {
@@ -148,27 +138,56 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
         return "வணக்கம் விவசாய தோழரே! உங்கள் $diseaseName நோய்க்கான முழு அறிக்கையை பார்த்துள்ளேன். மருந்தளவு அல்லது இயற்கை தீர்வுகள் பற்றி கேளுங்கள்.";
       case 'kn':
         return "ನಮಸ್ಕಾರ! ನಿಮ್ಮ $diseaseName ರೋಗದ ವರದಿಯನ್ನು ಪರಿಶೀಲಿಸಿದ್ದೇನೆ. ಔಷಧಿ ಸಿಂಪಡಣೆ ಪ್ರಮಾಣ ಅಥವಾ ಸಾವಯವ ಪರಿಹಾರಗಳ ಬಗ್ಗೆ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ.";
-      case 'ur':
-        return "سلام کسان بھائی! میں نے آپ کی $diseaseName کی تشخیص کی رپورٹ دیکھ لی ہے۔ اسپرے کے تناسب، نامیاتی علاج یا روک تھام کے بارے میں کوئی بھی سوال پوچھیں۔";
       default:
         return "नमस्ते किसान भाई! मैंने आपके $diseaseName के निदान का पूरा विवरण देख लिया है। CIBRC अनुमोदित स्प्रे मात्रा, जैविक समाधान या बचाव के उपायों के बारे में आप मुझसे सीधे पूछ सकते हैं।";
+    }
+  }
+
+  String _getEmptyVoiceMessage(String code) {
+    switch (code) {
+      case 'en':
+        return 'No clear speech was detected. Please tap the mic and speak clearly.';
+      case 'hinglish':
+        return 'Koi saaf aawaz nahi sunai di. Kripya dubara mic dabakar bolein.';
+      case 'pa':
+        return 'ਕੋਈ ਆਵਾਜ਼ ਨਹੀਂ ਸੁਣੀ ਗਈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਮਾਈਕ ਦਬਾ ਕੇ ਬੋਲੋ।';
+      case 'mr':
+        return 'कोणताही स्पष्ट आवाज ऐकू आला नाही. कृपया पुन्हा माइक दाबून बोला.';
+      case 'ta':
+        return 'குரல் கேட்கவில்லை. தயவுசெய்து மீண்டும் மைக் அழுத்திப் பேசுங்கள்.';
+      case 'te':
+        return 'స్పష్టమైన శబ్దం వినపడలేదు. దయచేసి మళ్లీ మైక్ నొక్కి మాట్లాడండి.';
+      case 'bn':
+        return 'কোনো স্পষ্ট কণ্ঠস্বর শোনা যায়নি। দয়া করে আবার মাইক চেপে কথা বলুন।';
+      case 'gu':
+        return 'કોઈ સ્પષ્ટ અવાજ સંભળાયો નથી. કૃપા કરીને ફરીથી માઇક દબાવીને બોલો.';
+      case 'kn':
+        return 'ಯಾವುದೇ ಧ್ವನಿ ಕೇಳಿಸಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಮೈಕ್ ಒತ್ತಿ ಮಾತನಾಡಿ.';
+      default:
+        return 'कोई स्पष्ट आवाज़ नहीं सुनाई दी। कृपया दोबारा माइक दबाकर स्पष्ट आवाज़ में बोलें।';
     }
   }
 
   String _getGreetingText(String code) {
     switch (code) {
       case 'en':
-        return "Hello friend! I am Krishi Copilot. Ask me anything in your voice about your crops, fertilizers, disease symptoms, or weather.";
+        return "Hello! I am Krishi Copilot. Tap the microphone to ask anything about your crops, fertilizers, pest remedies, or weather.";
       case 'hinglish':
-        return "Ram-ram bhai! Main Krishi Copilot hoon. Apni fasal, khad, beej ya mausam ke baare mein bolkar ya likhkar poochein.";
+        return "Ram-ram! Main Krishi Copilot hoon. Mic dabakar apni fasal, khad, bimari ya mausam ke baare mein poochein.";
       case 'pa':
-        return "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਕਿਸਾਨ ਵੀਰ! ਮੈਂ ਕ੍ਰਿਸ਼ੀ ਕੋਪਾਇਲਟ ਹਾਂ। ਆਪਣੀ ਫ਼ਸਲ, ਕੀੜੇ-ਮਕੌੜੇ ਜਾਂ ਮੰਡੀ ਬਾਰੇ ਬੋਲ ਕੇ ਪੁੱਛੋ।";
+        return "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਕਿਸਾਨ ਵੀਰ! ਮੈਂ ਕ੍ਰਿਸ਼ੀ ਕੋਪਾਇਲਟ ਹਾਂ। ਮਾਈਕ ਦਬਾ ਕੇ ਆਪਣੀ ਫ਼ਸਲ, ਖਾਦ ਜਾਂ ਕੀੜੇ-ਮਕੌੜਿਆਂ ਬਾਰੇ ਪੁੱਛੋ।";
       case 'mr':
-        return "राम-राम शेतकरी बांधवांनो! मी कृषी कॉपायलट आहे. पीक, खते किंवा रोगराईबद्दल बोलून विचारा.";
+        return "नमस्कार शेतकरी मित्रांनो! मी कृषी कॉपायलट आहे. माइक दाबून आपल्या पिकांबद्दल, खतांबद्दल किंवा रोगांबद्दल थेट विचारा.";
       case 'ta':
-        return "வணக்கம் விவசாய தோழரே! நான் கிருஷி கோபைலட். உங்கள் பயிர் மற்றும் உரம் பற்றி பேசி கேளுங்கள்.";
+        return "வணக்கம் விவசாய தோழரே! நான் கிருஷி கோபைலட். மைக் அழுத்தி உங்கள் பயிர், உரம் அல்லது வானிலை பற்றி கேளுங்கள்.";
       case 'te':
-        return "నమస్కారం రైతు సోదరా! నేను కృషి కోపైలట్. పంటలు, ఎరువులు లేదా వాతావరణం గురించి అడగండి.";
+        return "నమస్కారం రైతు సోదరా! నేను కృషి కోపైలట్. మైక్ నొక్కి మీ పంటలు, ఎరువులు లేదా వాతావరణం గురించి అడగండి.";
+      case 'bn':
+        return "নমস্কার কৃষক বন্ধু! আমি কৃষি কোপাইলট। মাইক চেপে আপনার ফসল, সার বা রোগ সম্পর্কে সরাসরি জিজ্ঞাসা করুন।";
+      case 'gu':
+        return "નમસ્તે ખેડૂત મિત્ર! હું કૃષિ કૉપાયલટ છું. માઇક દબાવીને તમારા પાક, ખાતર કે રોગ વિશે સીધું પૂછો.";
+      case 'kn':
+        return "ನಮಸ್ಕಾರ ರೈತ ಮಿತ್ರರೇ! ನಾನು ಕೃಷಿ ಕೋಪೈಲಟ್. ಮೈಕ್ ಒತ್ತಿ ನಿಮ್ಮ ಬೆಳೆ, ಗೊಬ್ಬರ ಅಥವಾ ರೋಗಗಳ ಬಗ್ಗೆ ನೇರವಾಗಿ ಕೇಳಿ.";
       default:
         return "राम-राम किसान भाई! मैं कृषि कॉपायलट हूँ। माइक दबाकर अपनी फसल, खाद, रोग या मौसम के बारे में सीधे पूछें।";
     }
@@ -188,10 +207,17 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
 
     if (notify && mounted) {
       setState(() {
-        final label = _activeLangCode == 'en' ? 'Language updated' : 'भाषा चुनी गई';
-        _statusLine = '$label | Tap microphone to speak';
+        _messages.add(
+          ChatMessage(
+            text: _getGreetingText(_activeLangCode),
+            isUser: false,
+            timestamp: DateTime.now(),
+          ),
+        );
       });
+      _scrollToBottom();
       _stopSpeechSynthesis();
+      _speakText(_getGreetingText(_activeLangCode));
     }
   }
 
@@ -199,8 +225,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
   // NATURAL HUMAN SPEECH SYNTHESIS (TTS)
   // ---------------------------------------------------------------------------
   void _stopSpeechSynthesis() {
-    if (kIsWeb) {
-      speech_bridge.bridgeCancelSpeech();
+    speech_bridge.bridgeCancelSpeech();
+    if (mounted && _isSpeaking) {
+      setState(() {
+        _isSpeaking = false;
+      });
     }
   }
 
@@ -210,195 +239,215 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
 
     setState(() {
       _isSpeaking = true;
-      _statusLine = '🔊 Speaking... | उत्तर सुनिए...';
     });
 
-    if (kIsWeb) {
-      speech_bridge.bridgeSpeak(
-        text: text,
-        activeSpeechLocale: _activeSpeechLocale,
-        activeLangCode: _activeLangCode,
-      );
-    }
+    final cleanSpeech = text
+        .replaceAll('*', '')
+        .replaceAll('#', '')
+        .replaceAll('`', '')
+        .replaceAll('•', '')
+        .replaceAll('- ', '')
+        .trim();
 
-    // Auto-calculate speaking timeout based on word count
-    final wordCount = text.split(' ').length;
-    final estimatedSeconds = (wordCount / 3.1).clamp(2.5, 14.0);
+    speech_bridge.bridgeSpeak(
+      text: cleanSpeech,
+      activeSpeechLocale: _activeSpeechLocale,
+      activeLangCode: _activeLangCode,
+    );
+
+    final wordCount = cleanSpeech.split(' ').length;
+    final estimatedSeconds = (wordCount / 2.8).clamp(3.0, 25.0);
 
     Future.delayed(Duration(milliseconds: (estimatedSeconds * 1000).toInt()), () {
       if (mounted && _isSpeaking) {
         setState(() {
           _isSpeaking = false;
-          _statusLine = 'Tap microphone to speak | बोलकर बात करें';
         });
       }
     });
   }
 
   // ---------------------------------------------------------------------------
-  // SPEECH RECOGNITION (STT) & DYNAMIC AI EVALUATION
+  // AUDIO RECORDING & AUTO-TRANSCRIBE TO INPUT BAR LOGIC
   // ---------------------------------------------------------------------------
-  void _toggleVoice() {
-    if (_isListening) {
-      // User manually stopped microphone: evaluate whatever was said immediately
-      _stopVoice(evaluateIfNotEmpty: true);
+  Future<void> _toggleAudioRecord() async {
+    if (_isRecording) {
+      // User tapped mic while recording -> STOP recording and TRANSCRIBE into the Ask Something bar!
+      await _stopAndTranscribeToInputBar();
     } else {
-      _startVoice();
+      // User tapped mic while idle -> START recording speech
+      await _startAudioRecord();
     }
   }
 
-  void _startVoice() {
+  Future<void> _startAudioRecord() async {
+    final hasMic = await DevicePermissionService.requestMicrophone();
+    if (!hasMic) {
+      if (mounted) PermissionPaletteDialog.show(context);
+      return;
+    }
+
     _stopSpeechSynthesis();
 
     setState(() {
-      _isListening = true;
-      _isSpeaking = false;
-      _lastSpeechTimestamp = null;
-      _lastTranscribedText = '';
-      _statusLine = '🔴 सुन रहा हूँ... अपनी पूरी बात कहें';
-      _liveTranscription =
-          'सुन रहा हूँ... बोलिए (माइक बंद करने पर या 5 सेकंड शांत रहने पर उत्तर मिलेगा)';
+      _isRecording = true;
+      _recordingSeconds = 0;
     });
 
-    if (kIsWeb) {
-      speech_bridge.bridgeStartListening(
-        activeSpeechLocale: _activeSpeechLocale,
-      );
-
-      // Poll speech transcription every 100ms for real-time text and 5-second silence detection
-      _sttPollingTimer?.cancel();
-      _sttPollingTimer =
-          Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        if (!mounted || !_isListening) {
-          timer.cancel();
-          return;
-        }
-
-        final currentText = speech_bridge.bridgeGetSpeechText();
-
-        if (currentText.isNotEmpty) {
-          // If words have updated / user is speaking
-          if (currentText != _lastTranscribedText) {
-            _lastTranscribedText = currentText;
-            _lastSpeechTimestamp = DateTime.now();
-            setState(() {
-              _liveTranscription = currentText;
-              _statusLine = '🔴 बोल रहे हैं... (सुन रहा हूँ)';
-            });
-          } else if (_lastSpeechTimestamp != null) {
-            // User has paused: calculate elapsed silence duration
-            final silenceElapsedMs = DateTime.now()
-                .difference(_lastSpeechTimestamp!)
-                .inMilliseconds;
-            final remainingSilenceSec =
-                ((5000 - silenceElapsedMs) / 1000).clamp(0.0, 5.0);
-
-            if (silenceElapsedMs >= 1500 && silenceElapsedMs < 5000) {
-              final statusMsg =
-                  '⏳ शांति: ${remainingSilenceSec.toStringAsFixed(1)}s (रुकने पर उत्तर मिलेगा)';
-              if (_statusLine != statusMsg) {
-                setState(() {
-                  _statusLine = statusMsg;
-                });
-              }
-            }
-
-            // Continuous 5-Second Silence Detected! Complete talk and evaluate!
-            if (silenceElapsedMs >= 5000) {
-              timer.cancel();
-              _stopVoice();
-              _processDynamicVoiceQuery(currentText);
-              return;
-            }
-          }
-        }
-      });
-    } else {
-      // Mobile platform fallback
-    }
-  }
-
-  void _stopVoice({bool evaluateIfNotEmpty = false}) {
-    _sttPollingTimer?.cancel();
-    String textToEvaluate = _lastTranscribedText;
-
-    if (kIsWeb) {
-      final t = speech_bridge.bridgeStopListening();
-      if (t.isNotEmpty) textToEvaluate = t;
-    }
-
-    setState(() {
-      _isListening = false;
-      if (!_isSpeaking && !_isThinking) {
-        _statusLine = 'Tap microphone to speak | बोलकर बात करें';
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted && _isRecording) {
+        setState(() {
+          _recordingSeconds++;
+        });
       }
     });
 
-    if (evaluateIfNotEmpty && textToEvaluate.trim().isNotEmpty) {
-      _processDynamicVoiceQuery(textToEvaluate.trim());
+    // Start recording on host backend via ffmpeg (await so it launches immediately)
+    try {
+      final uri = Uri.parse(ApiConfig.voiceRecordStartUrl);
+      final res = await http.post(uri).timeout(const Duration(seconds: 3));
+      debugPrint('Voice record start response: ${res.statusCode}');
+    } catch (e) {
+      debugPrint('Voice record start error: $e');
+    }
+
+    // If running in Web browser, also trigger Web Speech API
+    if (kIsWeb) {
+      speech_bridge.bridgeStartListening(activeSpeechLocale: _activeSpeechLocale);
     }
   }
 
-  /// 100% Free-Will AI Evaluation with Gemini 2.5 Flash in chosen language
-  Future<void> _processDynamicVoiceQuery(String text) async {
-    final cleanText = text.trim();
-    if (cleanText.isEmpty) return;
+  /// Stops recording and immediately transcribes the speech into the Ask Something text field
+  /// so the farmer can review, edit, or correct any errors before clicking submit.
+  Future<void> _stopAndTranscribeToInputBar() async {
+    _recordingTimer?.cancel();
 
     setState(() {
-      _liveTranscription = cleanText;
-      _messages.add(
-        ChatMessage(
-          text: cleanText,
-          isUser: true,
-          timestamp: DateTime.now(),
-        ),
-      );
-      _isThinking = true;
-      _statusLine = '⚡ Evaluating your question... (विचार कर रहा है...)';
+      _isRecording = false;
+      _isTranscribing = true;
     });
-    _scrollToBottom();
 
-    // Build previous conversation turns for multi-turn conversational memory
-    final history = _messages
-        .take(_messages.length - 1)
-        .map((m) => {
-              'role': m.isUser ? 'user' : 'model',
-              'text': m.text,
-            })
-        .toList();
-    if (widget.initialContext != null) {
-      history.insert(0, {
-        'role': 'user',
-        'text': 'ACTIVE DIAGNOSIS CONTEXT: ${widget.initialContext!}',
-      });
-      history.insert(1, {
-        'role': 'model',
-        'text': 'Understood. I will provide accurate agronomic guidance tailored to this diagnosis.',
-      });
+    try {
+      final uri = Uri.parse(ApiConfig.voiceRecordStopUrl);
+      final res = await http.post(uri).timeout(const Duration(seconds: 4));
+      debugPrint('Voice record stop response: ${res.statusCode}');
+    } catch (e) {
+      debugPrint('Voice record stop error: $e');
     }
 
-    // Call Gemini 2.5 Flash with 5-pillar agronomic Sherpa engine & chosen language
-    final response = await _llmService.answerConversationalVoice(
-      cleanText,
-      _activeLangCode,
-      conversationHistory: history,
-    );
+    if (kIsWeb) {
+      speech_bridge.bridgeStopListening();
+    }
+
+    // Brief 300ms pause to allow ffmpeg process to cleanly finalize WAV headers
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    String? webSpeechText;
+    if (kIsWeb) {
+      webSpeechText = speech_bridge.bridgeGetSpeechText();
+    }
+
+    try {
+      final uri = Uri.parse(ApiConfig.voiceTranscribeUrl);
+      final body = {
+        'language': _activeLangCode,
+        'language_name': _getLanguageDisplayName(_activeLangCode),
+        'audio_base64': null,
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 25));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final transcription = (data['transcription'] ?? '').toString().trim();
+        if (transcription.isNotEmpty &&
+            !transcription.contains('Unclear Audio') &&
+            !transcription.contains('स्पष्ट नहीं')) {
+          if (mounted) {
+            setState(() {
+              _isTranscribing = false;
+              _textController.text = transcription;
+              _textController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _textController.text.length),
+              );
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Voice transcribe error: $e');
+    }
+
+    // Fallback: Web speech API transcribed text if available
+    if (webSpeechText != null && webSpeechText.trim().isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _isTranscribing = false;
+          _textController.text = webSpeechText!.trim();
+          _textController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _textController.text.length),
+          );
+        });
+        return;
+      }
+    }
 
     if (mounted) {
       setState(() {
-        _isThinking = false;
-        _messages.add(
-          ChatMessage(
-            text: response,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ),
-        );
+        _isTranscribing = false;
       });
-      _scrollToBottom();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_getEmptyVoiceMessage(_activeLangCode)),
+          duration: const Duration(seconds: 3),
+          backgroundColor: const Color(0xFF1E3A24),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
-      // Speak response aloud naturally like a human
-      _speakText(response);
+  void _cancelAudioRecord() async {
+    _recordingTimer?.cancel();
+    setState(() {
+      _isRecording = false;
+      _isTranscribing = false;
+      _recordingSeconds = 0;
+    });
+
+    try {
+      final uri = Uri.parse(ApiConfig.voiceRecordStopUrl);
+      await http.post(uri).timeout(const Duration(seconds: 3));
+    } catch (_) {}
+
+    if (kIsWeb) {
+      speech_bridge.bridgeStopListening();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SUBMIT / SEND HANDLER (IMAGE 3)
+  // ---------------------------------------------------------------------------
+  Future<void> _handleSendAction() async {
+    // If the user tapped Send while recording was still active, stop & transcribe into text field first
+    // so they can review and edit before final sending:
+    if (_isRecording) {
+      await _stopAndTranscribeToInputBar();
+      return;
+    }
+
+    if (_isTranscribing) return;
+
+    // Send verified/edited question from text bar
+    final text = _textController.text.trim();
+    if (text.isNotEmpty || _attachedImageBytes != null) {
+      await _handleSendMessage(text);
     }
   }
 
@@ -417,11 +466,14 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
       setState(() {
         _attachedImageBytes = capturedBytes;
       });
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📷 फसल की तस्वीर संलग्न कर दी गई है।'),
-          backgroundColor: Color(0xFF2E7D32),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Text('📷 फसल की तस्वीर संलग्न कर दी गई है।'),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -443,8 +495,14 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('तस्वीर लेने में त्रुटि: $e')),
+          SnackBar(
+            content: Text('तस्वीर लेने में त्रुटि: $e'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         );
       }
     }
@@ -471,7 +529,6 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
       _isThinking = true;
       _attachedImageBytes = null;
       _textController.clear();
-      _liveTranscription = textToSend;
     });
     _scrollToBottom();
 
@@ -517,8 +574,6 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
         );
       });
       _scrollToBottom();
-
-      // Read answer aloud naturally
       _speakText(response);
     }
   }
@@ -600,6 +655,12 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
               });
             },
           ),
+          // Hardware Permissions Palette button
+          IconButton(
+            icon: const Icon(Icons.security_rounded, color: Color(0xFF4ADE80), size: 20),
+            tooltip: 'हार्डवेयर अनुमतियां (Hardware Permissions)',
+            onPressed: () => PermissionPaletteDialog.show(context),
+          ),
           const SizedBox(width: 6),
         ],
       ),
@@ -608,14 +669,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
           // ─── 1. LANGUAGE SELECTOR PILLS ───
           _buildLanguageSelector(),
 
-          // ─── 2. KRISHI COPILOT VOICE CENTERPIECE PANEL ───
-          _buildVoiceCenterpiece(),
-
-          // ─── 3. CONTINUOUS CONVERSATION STREAM ───
+          // ─── 2. CONTINUOUS CONVERSATION STREAM (FULL SCREEN CLEAN EXPANDED) ───
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
@@ -627,7 +685,7 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
           // Thinking indicator
           if (_isThinking)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               alignment: Alignment.centerLeft,
               child: const Row(
                 children: [
@@ -699,7 +757,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
               ),
             ),
 
-          // ─── 4. BOTTOM INPUT BAR (TEXT & PHOTO) ───
+          // ─── 3. RECORDING STATUS STRIP (ACTIVE OR TRANSCRIBING) ───
+          if (_isRecording || _isTranscribing)
+            _buildRecordingStatusStrip(),
+
+          // ─── 4. BOTTOM INPUT BAR (TEXT, CAMERA, MIC, SEND) ───
           _buildBottomInputBar(),
         ],
       ),
@@ -778,176 +840,7 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 2. KRISHI COPILOT VOICE CENTERPIECE (7-BAR WAVE + 72px GLOWING MIC)
-  // ---------------------------------------------------------------------------
-  Widget _buildVoiceCenterpiece() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-        gradient: const RadialGradient(
-          center: Alignment(0.0, -0.6),
-          radius: 1.2,
-          colors: [
-            Color(0x404CAF50), // Green radial highlight
-            Color(0xFF0C2214),
-            Color(0xFF040C06),
-          ],
-          stops: [0.0, 0.6, 1.0],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 7 Animated Waveform Bars
-          _buildWaveformBars(),
-          const SizedBox(height: 14),
-
-          // 72px Circular Glowing Mic Button
-          _buildMicButton(),
-          const SizedBox(height: 10),
-
-          // Status Line
-          Text(
-            _statusLine,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xCCFFFFFF),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Live Transcription Box
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            ),
-            child: Text(
-              _liveTranscription,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFFE8F5E9),
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWaveformBars() {
-    final isActive = _isListening || _isSpeaking;
-    final delays = [0.05, 0.12, 0.24, 0.36, 0.24, 0.12, 0.05];
-
-    return AnimatedBuilder(
-      animation: _waveformController,
-      builder: (context, child) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(7, (index) {
-            final t = _waveformController.value;
-            final phase = delays[index] * 2 * math.pi;
-            final scale = isActive
-                ? (0.35 + 0.65 * (0.5 + 0.5 * math.sin(2 * math.pi * t + phase)))
-                : 0.25;
-            final height = 24.0 * scale;
-
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2.5),
-              width: 4.5,
-              height: height.clamp(6.0, 24.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4ADE80),
-                borderRadius: BorderRadius.circular(2.5),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF4ADE80).withValues(alpha: 0.55),
-                          blurRadius: 4,
-                        ),
-                      ]
-                    : [],
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-
-  Widget _buildMicButton() {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        final isRed = _isListening;
-        final pulseVal = _pulseController.value;
-
-        return GestureDetector(
-          onTap: _toggleVoice,
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isRed
-                  ? const LinearGradient(
-                      colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
-                    )
-                  : const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
-                    ),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 3,
-              ),
-              boxShadow: [
-                if (isRed)
-                  BoxShadow(
-                    color: Colors.redAccent.withValues(alpha: 0.7 * pulseVal),
-                    blurRadius: 20 * pulseVal,
-                    spreadRadius: 4 * pulseVal,
-                  )
-                else
-                  BoxShadow(
-                    color: const Color(0xFF4ADE80).withValues(alpha: 0.4),
-                    blurRadius: 18,
-                    offset: const Offset(0, 4),
-                  ),
-              ],
-            ),
-            child: Center(
-              child: isRed
-                  ? const Icon(Icons.stop_rounded,
-                      color: Colors.white, size: 36)
-                  : const Icon(Icons.mic_rounded,
-                      color: Colors.white, size: 36),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3. CONVERSATION MESSAGE BUBBLE
+  // 2. CONVERSATION MESSAGE BUBBLE (CLEAN - IMAGE 4 HEADER REMOVED)
   // ---------------------------------------------------------------------------
   Widget _buildMessageBubble(ChatMessage message) {
     final isUser = message.isUser;
@@ -983,43 +876,6 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isUser ? Icons.person : Icons.psychology_rounded,
-                  size: 13,
-                  color: isUser ? Colors.white70 : const Color(0xFF69F0AE),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  isUser ? 'आप (Farmer)' : 'कृषि कॉपायलट',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isUser ? Colors.white70 : const Color(0xFF69F0AE),
-                  ),
-                ),
-                if (!isUser) ...[
-                  const Spacer(),
-                  InkWell(
-                    onTap: () => _speakText(message.text),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        _isSpeaking
-                            ? Icons.volume_up_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 16,
-                        color: const Color(0xFF4ADE80),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 6),
-
             if (message.imageBytes != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1058,11 +914,119 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 4. BOTTOM INPUT BAR (TEXT & CAMERA)
+  // 3. RECORDING STATUS STRIP
+  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // 3. RECORDING STATUS STRIP
+  // ---------------------------------------------------------------------------
+  Widget _buildRecordingStatusStrip() {
+    if (!_isRecording && !_isTranscribing) {
+      return const SizedBox.shrink();
+    }
+
+    if (_isTranscribing) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F291E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF4ADE80),
+            width: 1,
+          ),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF4ADE80),
+              ),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '✨ आवाज़ से शब्द लिखे जा रहे हैं... (Converting speech to text...)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF86EFAC),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final mins = (_recordingSeconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (_recordingSeconds % 60).toString().padLeft(2, '0');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A0D0D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFEF4444),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFEF4444),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '🎙️ बोलिए... आवाज़ रिकॉर्ड हो रही है ($mins:$secs) · रोकने के लिए माइक दबाएं',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFFECACA),
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: _cancelAudioRecord,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.close, color: Colors.white70, size: 14),
+                  SizedBox(width: 4),
+                  Text('रद्द करें', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. BOTTOM INPUT BAR (TEXT, CAMERA, MIC, SEND)
   // ---------------------------------------------------------------------------
   Widget _buildBottomInputBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: const BoxDecoration(
         color: Color(0xFF0C170E),
         border: Border(top: BorderSide(color: Colors.white12, width: 1)),
@@ -1071,11 +1035,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
         top: false,
         child: Row(
           children: [
-            // Camera snap button (Live Camera Module)
+            // Camera snap button
             IconButton(
               icon: const Icon(Icons.camera_alt_rounded,
                   color: Color(0xFF4ADE80), size: 22),
-              tooltip: 'कैमरे से फोटो लें (लाइव कैमरा)',
+              tooltip: 'कैमरे से फोटो लें',
               onPressed: _openCameraModule,
             ),
 
@@ -1091,10 +1055,22 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
             Expanded(
               child: TextField(
                 controller: _textController,
+                enabled: !_isTranscribing,
                 style: const TextStyle(fontSize: 13.5, color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'अपनी बोली में पूछें / Ask anything...',
-                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                  hintText: _isTranscribing
+                      ? '✨ आवाज़ से शब्द लिखे जा रहे हैं...'
+                      : _isRecording
+                          ? '🎙️ बोलिए... आवाज़ रिकॉर्ड हो रही है...'
+                          : 'अपनी बोली में पूछें / Ask anything...',
+                  hintStyle: TextStyle(
+                    color: _isTranscribing
+                        ? const Color(0xFF86EFAC)
+                        : _isRecording
+                            ? const Color(0xFFFCA5A5)
+                            : Colors.white38,
+                    fontSize: 12,
+                  ),
                   filled: true,
                   fillColor: const Color(0xFF162819),
                   contentPadding:
@@ -1104,17 +1080,139 @@ class _VoiceChatScreenState extends State<VoiceChatScreen>
                     borderSide: BorderSide.none,
                   ),
                 ),
-                onSubmitted: _handleSendMessage,
+                onSubmitted: (_) => _handleSendAction(),
               ),
             ),
+            const SizedBox(width: 6),
+
+            // 🎤 Audio / Mic button (Image 2)
+            _buildAudioRecordButton(),
+
             const SizedBox(width: 4),
 
-            // Send button
-            IconButton(
-              icon: const Icon(Icons.send_rounded, color: Color(0xFF4ADE80)),
-              onPressed: () => _handleSendMessage(_textController.text),
-            ),
+            // 🚀 Send / Submit button (Image 3)
+            _buildSendButton(),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. AUDIO / MIC BUTTON (IMAGE 2)
+  // ---------------------------------------------------------------------------
+  Widget _buildAudioRecordButton() {
+    if (_isTranscribing) {
+      return Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF0F291E),
+          border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF4ADE80),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final pulse = _pulseController.value;
+        Color bgColor;
+        Color iconColor;
+        IconData iconData;
+        String tooltip;
+        BoxBorder? border;
+        List<BoxShadow>? shadows;
+
+        if (_isRecording) {
+          bgColor = const Color(0xFFDC2626);
+          iconColor = Colors.white;
+          iconData = Icons.stop_rounded;
+          tooltip = 'रिकॉर्डिंग रोकें और लिखें (Stop & Convert to Text)';
+          border = Border.all(color: Colors.white, width: 2);
+          shadows = [
+            BoxShadow(
+              color: Colors.redAccent.withValues(alpha: 0.5 + 0.4 * pulse),
+              blurRadius: 10 + 6 * pulse,
+              spreadRadius: 1 + 2 * pulse,
+            ),
+          ];
+        } else {
+          bgColor = const Color(0xFF1B4332);
+          iconColor = const Color(0xFF4ADE80);
+          iconData = Icons.mic_rounded;
+          tooltip = 'आवाज़ रिकॉर्ड करें (Tap to speak)';
+          border = Border.all(
+            color: const Color(0xFF4ADE80).withValues(alpha: 0.5),
+            width: 1,
+          );
+        }
+
+        return Tooltip(
+          message: tooltip,
+          child: InkWell(
+            onTap: _toggleAudioRecord,
+            borderRadius: BorderRadius.circular(22),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: bgColor,
+                border: border,
+                boxShadow: shadows,
+              ),
+              child: Center(
+                child: Icon(iconData, color: iconColor, size: 22),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. SEND / SUBMIT BUTTON (IMAGE 3)
+  // ---------------------------------------------------------------------------
+  Widget _buildSendButton() {
+    return Tooltip(
+      message: 'संदेश भेजें (Send message)',
+      child: InkWell(
+        onTap: _handleSendAction,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF15803D),
+            border: Border.all(
+              color: const Color(0xFF4ADE80),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF4ADE80).withValues(alpha: 0.3),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+          ),
         ),
       ),
     );
