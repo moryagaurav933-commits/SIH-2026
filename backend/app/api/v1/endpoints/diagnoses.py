@@ -129,7 +129,12 @@ async def get_diagnosis_stats(
 import base64
 import hashlib
 from fastapi import File, UploadFile, Form, Request
-from app.services.crop_ai_service import CropAIService
+from app.services.crop_ai_service import (
+    CropAIService,
+    CropModelUnavailableError,
+    InvalidCropHintError,
+    InvalidCropImageError,
+)
 
 async def process_leaf_diagnosis(
     request: Request,
@@ -186,10 +191,43 @@ async def process_leaf_diagnosis(
     service = CropAIService.get_instance()
     try:
         inference_result = service.run_inference(img_bytes, crop_hint=req_crop)
+    except InvalidCropImageError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except InvalidCropHintError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except CropModelUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Inference failed: {e}")
 
     ml_class = inference_result["predicted_class"]
+
+    # Check if the image failed leaf presence verification
+    if not inference_result.get("is_leaf_detected", True):
+        return {
+            "success": False,
+            "status": "no_leaf_detected",
+            "predicted_class": "no_leaf_detected",
+            "disease_name": "NO leaf detected in the image you provide",
+            "disease_name_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+            "crop": "None",
+            "confidence": 0.0,
+            "is_healthy": False,
+            "is_low_confidence": True,
+            "is_crop_mismatch": True,
+            "is_leaf_detected": False,
+            "crop_match_confidence": 0.0,
+            "message": "NO leaf detected in the image you provide",
+            "message_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+            "model_version": inference_result.get("model_engine", "Krishi-Saarthi Botanical Guard"),
+            "diagnosis_id": None,
+            "ml_prediction": inference_result,
+            "disease_profile": None,
+            "kb_info": {
+                "immediate_action": "Please provide a clear photograph of a crop leaf.",
+                "faq": []
+            }
+        }
 
     # 2. Database Profile Lookup
     disease_profile = await service.get_disease_profile_from_db(db, ml_class)

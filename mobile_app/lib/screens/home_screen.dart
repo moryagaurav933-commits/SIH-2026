@@ -7,14 +7,16 @@ import '../providers/language_provider.dart';
 import '../providers/weather_provider.dart';
 import 'diagnosis/diagnosis_screen.dart';
 import 'weather/weather_screen.dart';
-import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'mandi/mandi_screen.dart';
 import 'voice_chat/voice_chat_screen.dart';
 import 'insurance/insurance_screen.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'settings/settings_screen.dart';
+import 'field/field_palette_screen.dart';
+import 'gis/gis_telemetry_screen.dart';
+import 'marketplace/marketplace_screen.dart';
+import 'community/community_palette_screen.dart';
+import '../widgets/permission_palette_dialog.dart';
 
 /// Krishi-Saarthi OS — Editorial Field Sanctuary Design System
 /// Implemented directly from Google Stitch architecture & design palette
@@ -25,7 +27,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   // Design Tokens — Green + White + Red/Black/Yellow Theme
   static const Color colorBg = Color(0xFFF5F9F5);
   static const Color colorSurface = Color(0xFFF8FBF8);
@@ -37,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   static const Color colorPrimarySoft = Color(0xFFE8F5E9);
   static const Color colorSecondary = Color(0xFF1B5E20);
   static const Color colorBronze = Color(0xFFFFC107);          // Yellow accent
-  static const Color colorBronzeLight = Color(0xFFFFD54F);     // Light yellow
   static const Color colorEarthAlert = Color(0xFFD32F2F);      // Red accent
   static const Color colorOchre = Color(0xFFFFA000);           // Deep yellow
   static const Color colorOchreLight = Color(0xFFFFF8E1);      // Light yellow bg
@@ -62,34 +64,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return _waveController!;
   }
 
+  bool _allPermissionsGranted = false;
+  bool _isPermissionBannerDismissed = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     waveController;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestStartupPermissions();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkPermissionsState();
+      // On desktop or mobile, if permissions are not yet granted, trigger the front-page permission pop up
+      if (!_allPermissionsGranted && mounted) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted && !_allPermissionsGranted && !_isPermissionBannerDismissed) {
+            PermissionPaletteDialog.show(context, onPermissionsUpdated: _checkPermissionsState);
+          }
+        });
+      }
     });
   }
 
-  Future<void> _requestStartupPermissions() async {
-    if (kIsWeb) return;
-    try {
-      LocationPermission locPerm = await Geolocator.checkPermission();
-      if (locPerm == LocationPermission.denied) {
-        await Geolocator.requestPermission();
-      }
-      await [
-        Permission.camera,
-        Permission.microphone,
-        Permission.location,
-      ].request();
-    } catch (e) {
-      debugPrint('Startup permissions notice: $e');
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionsState();
+    }
+  }
+
+  Future<void> _checkPermissionsState() async {
+    final granted = await PermissionPaletteDialog.areAllPermissionsGranted();
+    if (mounted) {
+      setState(() {
+        _allPermissionsGranted = granted;
+        if (granted) {
+          _isPermissionBannerDismissed = true;
+        }
+      });
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _waveController?.dispose();
     super.dispose();
   }
@@ -114,6 +131,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (!_allPermissionsGranted && !_isPermissionBannerDismissed) ...[
+                        _buildPermissionWarningBanner(),
+                        const SizedBox(height: 14),
+                      ],
                       _buildHeroCard(),
                       const SizedBox(height: 18),
                       _buildAlertAndWeatherGrid(),
@@ -184,6 +205,48 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
       ),
       actions: [
+        // Hardware Permissions Palette Button
+        Builder(
+          builder: (context) {
+            final lang = Provider.of<LanguageProvider>(context).currentLanguage;
+            return InkWell(
+              onTap: () => PermissionPaletteDialog.show(context, onPermissionsUpdated: _checkPermissionsState),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _allPermissionsGranted ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _allPermissionsGranted ? const Color(0xFFA5D6A7) : const Color(0xFFFFB74D),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _allPermissionsGranted ? Icons.verified_user_rounded : Icons.security_rounded,
+                      size: 15,
+                      color: _allPermissionsGranted ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _allPermissionsGranted
+                          ? _getPermissionBannerText('badge_ok', lang)
+                          : _getPermissionBannerText('badge_need', lang),
+                      style: TextStyle(
+                        color: _allPermissionsGranted ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+
         // Language Selector Pill Button
         InkWell(
           onTap: _showLanguagePicker,
@@ -267,6 +330,169 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildPermissionWarningBanner() {
+    final lang = Provider.of<LanguageProvider>(context).currentLanguage;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFB74D), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE082),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.security_rounded, color: Color(0xFFE65100), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getPermissionBannerText('banner_title', lang),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFE65100),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getPermissionBannerText('banner_desc', lang),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF5D4037),
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => PermissionPaletteDialog.show(context, onPermissionsUpdated: _checkPermissionsState),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE65100),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: Text(
+              _getPermissionBannerText('banner_btn', lang),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _isPermissionBannerDismissed = true;
+              });
+            },
+            icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF8D6E63)),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
+            tooltip: 'Dismiss alert',
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPermissionBannerText(String key, AppLanguage lang) {
+    const Map<String, Map<AppLanguage, String>> strings = {
+      'badge_ok': {
+        AppLanguage.hinglish: 'Permissions OK ✓',
+        AppLanguage.hi: 'अनुमति सक्रिय ✓',
+        AppLanguage.en: 'Permissions Active ✓',
+        AppLanguage.bn: 'অনুমতি সক্রিয় ✓',
+        AppLanguage.gu: 'પરવાનગી સક્રિય ✓',
+        AppLanguage.mr: 'परवानगी सक्रिय ✓',
+        AppLanguage.te: 'అనుమతి సక్రియం ✓',
+        AppLanguage.ta: 'அனுமதி செயலில் ✓',
+        AppLanguage.ur: 'اجازت فعال ✓',
+        AppLanguage.kn: 'ಅನುಮತಿ ಸಕ್ರಿಯ ✓',
+      },
+      'badge_need': {
+        AppLanguage.hinglish: 'Allow ⚠️',
+        AppLanguage.hi: 'अनुमति दें ⚠️',
+        AppLanguage.en: 'Allow ⚠️',
+        AppLanguage.bn: 'অনুমতি দিন ⚠️',
+        AppLanguage.gu: 'પરવાનગી આપો ⚠️',
+        AppLanguage.mr: 'परवानगी द्या ⚠️',
+        AppLanguage.te: 'అనుమతించు ⚠️',
+        AppLanguage.ta: 'அனுமதிக்கவும் ⚠️',
+        AppLanguage.ur: 'اجازت دیں ⚠️',
+        AppLanguage.kn: 'ಅನುಮತಿಸಿ ⚠️',
+      },
+      'banner_title': {
+        AppLanguage.hinglish: 'Hardware Permissions Needed',
+        AppLanguage.hi: 'हार्डवेयर अनुमतियां आवश्यक हैं',
+        AppLanguage.en: 'Device Permissions Required',
+        AppLanguage.bn: 'হার্ডওয়্যার অনুমতি প্রয়োজন',
+        AppLanguage.gu: 'હાર્ડવેર પરવાનગીઓ જરૂરી છે',
+        AppLanguage.mr: 'हार्डवेअर परवानग्या आवश्यक आहेत',
+        AppLanguage.te: 'హార్డ్‌వేర్ అనుమతులు అవసరం',
+        AppLanguage.ta: 'வன்பொருள் அனுமதிகள் தேவை',
+        AppLanguage.ur: 'ہارڈ ویئر اجازتیں درکار ہیں',
+        AppLanguage.kn: 'ಯಂತ್ರಾಂಶ ಅನುಮತಿಗಳು ಅಗತ್ಯವಿದೆ',
+      },
+      'banner_desc': {
+        AppLanguage.hinglish:
+            'Desktop par AI Camera, Voice Copilot aur Bima claims ke liye permissions allow karein.',
+        AppLanguage.hi:
+            'डेस्कटॉप पर AI कैमरा, वॉयस चैट और बीमा क्लेम के लिए अनुमतियां सक्रिय करें।',
+        AppLanguage.en:
+            'Enable permissions for AI camera, voice copilot, and PMFBY insurance claims.',
+        AppLanguage.bn:
+            'এআই ক্যামেরা, ভয়েস চ্যাট ও বীমা দাবির জন্য অনুমতি সক্রিয় করুন।',
+        AppLanguage.gu:
+            'AI કેમેરા, વોઇસ ચેટ અને વીમા દાવા માટે પરવાનગીઓ સક્ષમ કરો.',
+        AppLanguage.mr:
+            'AI कॅमेरा, व्हॉईस चॅट आणि विमा दाव्यासाठी परवानग्या सक्षम करा.',
+        AppLanguage.te:
+            'AI కెమెరా, వాయిస్ చాట్ మరియు బీమా క్లెయిమ్‌ల కోసం అనుమతులను ప్రారంభించండి.',
+        AppLanguage.ta:
+            'AI கேமரா, குரல் அரட்டை மற்றும் காப்பீட்டுக்கு அனுமதிகளை இயக்கவும்.',
+        AppLanguage.ur:
+            'AI کیمرہ، وائس چیٹ اور بیمہ دعووں کے لیے اجازتیں فعال کریں۔',
+        AppLanguage.kn:
+            'AI ಕ್ಯಾಮೆರಾ, ಧ್ವನಿ ಚಾಟ್ ಮತ್ತು ವಿಮಾ ಕ್ಲೈಮ್‌ಗಳಿಗಾಗಿ ಅನುಮತಿಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.',
+      },
+      'banner_btn': {
+        AppLanguage.hinglish: 'Allow',
+        AppLanguage.hi: 'अनुमति दें',
+        AppLanguage.en: 'Grant',
+        AppLanguage.bn: 'অনুমতি দিন',
+        AppLanguage.gu: 'પરવાનગી આપો',
+        AppLanguage.mr: 'परवानगी द्या',
+        AppLanguage.te: 'అనుమతించు',
+        AppLanguage.ta: 'அனுமதிக்கவும்',
+        AppLanguage.ur: 'اجازت دیں',
+        AppLanguage.kn: 'ಅನುಮತಿಸಿ',
+      },
+    };
+    final entry = strings[key];
+    if (entry == null) return key;
+    return entry[lang] ?? entry[AppLanguage.hinglish] ?? entry[AppLanguage.en] ?? key;
+  }
+
   // ==========================================
   // 2. ATMOSPHERIC HERO VIGNETTE & TELEMETRY
   // ==========================================
@@ -330,63 +556,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top Row: Telemetry Badges
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: colorBronzeLight,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              context.tr('hero_badge_telemetry'),
-                              style: const TextStyle(
-                                color: Color(0xFFEADBCE),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'monospace',
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: Text(
-                          context.tr('hero_badge_season'),
-                          style: const TextStyle(
-                            color: Color(0xFFFDE68A),
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'monospace',
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Middle: Editorial Greeting & Microclimate Info
+                  // Top: Editorial Greeting & Microclimate Info
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -409,44 +579,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Refined Tri-Metric Glass Bar
-                      Consumer<WeatherProvider>(
-                        builder: (context, weatherProv, _) {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _buildTriMetricPill(
-                                  value: '${weatherProv.currentHumidity}%',
-                                  label: context.tr('tri_moisture_label'),
-                                  sublabel: context.tr('tri_moisture_sub'),
-                                  onTap: () => _navigateTo(const DashboardScreen()),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTriMetricPill(
-                                  value: '${weatherProv.currentTemp}°C',
-                                  label: context.tr('tri_temp_label'),
-                                  sublabel: context.tr('tri_temp_sub'),
-                                  onTap: () => _navigateTo(const WeatherScreen()),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTriMetricPill(
-                                  value: '0.78',
-                                  label: context.tr('tri_canopy_label'),
-                                  sublabel: context.tr('tri_canopy_sub'),
-                                  onTap: () => _navigateTo(const DashboardScreen()),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
                     ],
+                  ),
+
+                  // Bottom: Refined Tri-Metric Glass Bar shifted to the bottom of the photo
+                  Consumer<WeatherProvider>(
+                    builder: (context, weatherProv, _) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildTriMetricPill(
+                              value: '${weatherProv.currentHumidity}%',
+                              label: context.tr('tri_moisture_label'),
+                              sublabel: context.tr('tri_moisture_sub'),
+                              onTap: () => _navigateTo(const DashboardScreen()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildTriMetricPill(
+                              value: '${weatherProv.currentTemp}°C',
+                              label: context.tr('tri_temp_label'),
+                              sublabel: context.tr('tri_temp_sub'),
+                              onTap: () => _navigateTo(const WeatherScreen()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildTriMetricPill(
+                              value: '0.78',
+                              label: context.tr('tri_canopy_label'),
+                              sublabel: context.tr('tri_canopy_sub'),
+                              onTap: () => _navigateTo(const DashboardScreen()),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -689,6 +858,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         const SizedBox(height: 12),
 
+        // GIS Telemetry & Disease Spread Radar Palette Card
+        _buildGisTelemetryCard(),
+
+        const SizedBox(height: 14),
+
         // Dynamic Weather & Soil Telemetry Section with Quick City Selector
         Consumer<WeatherProvider>(
           builder: (context, weatherProv, _) {
@@ -733,19 +907,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         onTap: () async {
                           final ok = await weatherProv.fetchWeatherForGps();
                           if (!ok && context.mounted) {
+                            ScaffoldMessenger.of(context).clearSnackBars();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(context.tr('weather_gps_denied')),
                                 backgroundColor: colorEarthAlert,
                                 duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                             );
                           } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).clearSnackBars();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('📍 Live GPS: ${weatherProv.locationLabel}'),
                                 backgroundColor: colorPrimary,
                                 duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                             );
                           }
@@ -766,11 +946,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             isLoading: false,
                             onTap: () {
                               weatherProv.fetchWeatherForCity(city);
+                              ScaffoldMessenger.of(context).clearSnackBars();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('🌤️ Loading weather for $city...'),
                                   backgroundColor: colorPrimary,
                                   duration: const Duration(milliseconds: 1200),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                               );
                             },
@@ -1106,6 +1289,180 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // ==========================================
+  // GIS TELEMETRY & DISEASE SPREAD RADAR CARD
+  // ==========================================
+  Widget _buildGisTelemetryCard() {
+    final isHi = context.currentLanguage != AppLanguage.en;
+
+    return InkWell(
+      onTap: () => _navigateTo(const GisTelemetryScreen()),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colorHairline),
+          boxShadow: [
+            BoxShadow(
+              color: colorPrimary.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Left accent border: Forest green & topographic amber
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [colorPrimary, colorBronze],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.horizontal(left: Radius.circular(18)),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: colorPrimarySoft,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: colorPrimary.withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.terrain_rounded, size: 12, color: colorPrimary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'GOOGLE TERRAIN · LIVE GIS',
+                                  style: TextStyle(
+                                    color: colorPrimary,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'monospace',
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '30 KM RADAR',
+                              style: TextStyle(
+                                color: Color(0xFFE65100),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Icon(Icons.radar_rounded, size: 18, color: colorPrimary),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isHi
+                        ? 'GIS टेलीमेट्री व रोग फैलाव नक्शा (Disease Spread Radar)'
+                        : 'GIS Telemetry & Regional Disease Spread Radar',
+                    style: const TextStyle(
+                      color: colorStoneText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isHi
+                        ? 'गूगल मैप्स 3D टेरेन व्यू पर आपके खेत के रकबे का सटीक विश्लेषण और आसपास 30 किमी में लाइव रोग फैलाव।'
+                        : 'Google Maps 3D Terrain View analyzing your farm acreage and real-time 30km disease vector spread.',
+                    style: const TextStyle(
+                      color: colorStoneMuted,
+                      fontSize: 11.5,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(color: colorHairline, height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.my_location_rounded, size: 13, color: colorPrimary),
+                          const SizedBox(width: 5),
+                          Text(
+                            isHi ? 'लाइव GPS खेत केंद्र' : 'Live GPS Farm Center',
+                            style: const TextStyle(
+                              color: colorBronze,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            isHi ? 'टेरेन नक्शा खोलें' : 'Open Terrain Radar',
+                            style: const TextStyle(
+                              color: colorPrimary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '→',
+                            style: TextStyle(
+                              color: colorPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
   // LOCATION SELECTOR & CHIP HELPERS
   // ==========================================
   Widget _buildQuickLocationChip({
@@ -1289,18 +1646,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Navigator.pop(ctx);
                   final ok = await weatherProv.fetchWeatherForGps();
                   if (!ok && mounted) {
+                    ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(context.tr('weather_gps_denied')),
                         backgroundColor: colorEarthAlert,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     );
                   } else if (mounted) {
+                    ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('📍 Live GPS Synced: ${weatherProv.locationLabel}'),
                         backgroundColor: colorPrimary,
                         duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     );
                   }
@@ -1855,6 +2219,110 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
         ),
+        const SizedBox(height: 12),
+
+        // Specialized Marketplace Curing Products Card
+        InkWell(
+          onTap: () => _navigateTo(const MarketplaceScreen()),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colorHairline),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.storefront_outlined,
+                    color: Color(0xFF15803D),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'CURE & SHOP · 40 VERIFIED ITEMS · KISAN SUBSIDY',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: 'monospace',
+                                color: Color(0xFF15803D),
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          const Text(
+                            '04',
+                            style: TextStyle(
+                              color: colorStoneMuted,
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        context.tr('suite_marketplace_title'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: colorStoneText,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        context.tr('suite_marketplace_sub'),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: colorStoneMuted,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: colorPrimary,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1880,13 +2348,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       child: Row(
         children: [
-          // 1. Home / Khet
+          // 1. Home / Khet (Field Palette)
           Expanded(
             child: _buildDockItem(
               icon: Icons.yard_rounded,
               label: context.tr('dock_home'),
               isActive: true,
-              onTap: () {},
+              onTap: () => _navigateTo(const FieldPaletteScreen()),
             ),
           ),
 
@@ -1959,15 +2427,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               icon: Icons.groups_rounded,
               label: context.tr('dock_community'),
               isActive: false,
-              onTap: _showKrishiCommunityModal,
+              onTap: () => _navigateTo(const CommunityPaletteScreen()),
             ),
           ),
 
-          // 5. More Features Menu
+          // 5. Features Menu
           Expanded(
             child: _buildDockItem(
               icon: Icons.grid_view_rounded,
-              label: context.tr('dock_13_features'),
+              label: context.tr('dock_features'),
               isActive: false,
               onTap: _showFeaturesDrawer,
             ),
@@ -2059,277 +2527,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ==========================================
-  // KRISHI COMMUNITY MODAL BOTTOM SHEET
-  // ==========================================
-  void _showKrishiCommunityModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.78,
-          decoration: const BoxDecoration(
-            color: colorBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              // Grab Handle
-              const SizedBox(height: 10),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorHairline,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 10),
 
-              // Modal Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: const BoxDecoration(
-                  color: colorSurface,
-                  border: Border(bottom: BorderSide(color: colorHairline)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: colorPrimarySoft,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: colorPrimary.withValues(alpha: 0.2)),
-                          ),
-                          child: const Icon(Icons.groups_rounded, color: colorPrimary, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.tr('community_modal_title'),
-                              style: const TextStyle(
-                                color: colorPrimaryForest,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              context.tr('community_modal_sub'),
-                              style: const TextStyle(color: colorStoneMuted, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: colorStoneMuted),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content Body
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(18),
-                  children: [
-                    // Status Badge Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: colorHairline),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorPrimary.withValues(alpha: 0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF10B981),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'KRISHI COMMUNITY HUB · READY',
-                                style: TextStyle(
-                                  color: colorPrimary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  fontFamily: 'monospace',
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            context.currentLanguage == AppLanguage.hi
-                                ? 'कृषि कम्युनिटी हब सक्रिय है। आपके आगामी निर्देशों के लिए तैयार!'
-                                : (context.currentLanguage == AppLanguage.hinglish
-                                    ? 'Krishi Community Hub active hai! Aapke agle instructions ke liye tayyar.'
-                                    : 'Krishi Community Hub is active! Standing by for your instructions.'),
-                            style: const TextStyle(
-                              color: colorStoneText,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              height: 1.3,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            context.currentLanguage == AppLanguage.hi
-                                ? 'यहाँ किसान भाई आपस में फसल अनुभव, मंडी भाव, रोग नियंत्रण और सामूहिक कृषि रणनीतियों पर परस्पर संवाद कर सकेंगे।'
-                                : (context.currentLanguage == AppLanguage.hinglish
-                                    ? 'Yahan kisaan bhai aapas mein fasal anubhav, mandi bhav, beemari roktham aur group advisory share kar sakenge.'
-                                    : 'A dedicated interactive forum where farmers exchange field crop experiences, real-time APMC price insights, and pest management strategies.'),
-                            style: const TextStyle(
-                              color: colorStoneMuted,
-                              fontSize: 11.5,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Feature Placeholders for upcoming instructions
-                    _buildCommunityFeatureCard(
-                      icon: Icons.forum_outlined,
-                      iconBg: const Color(0xFFE8F5E9),
-                      iconColor: colorPrimary,
-                      title: context.currentLanguage == AppLanguage.hi
-                          ? 'किसान संवाद चर्चा (Kisan Charcha)'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'Kisan Charcha • Open Discussions'
-                              : 'Farmer Discussion Forum'),
-                      subtitle: context.currentLanguage == AppLanguage.hi
-                          ? 'स्थानीय किसानों से अपने गांव और क्षेत्र के सवाल-जवाब'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'Aapke gaon aur zila ke kisaano ke saath live prashn-uttar'
-                              : 'Live Q&A and local farming queries across villages'),
-                    ),
-                    const SizedBox(height: 10),
-
-                    _buildCommunityFeatureCard(
-                      icon: Icons.trending_up_rounded,
-                      iconBg: const Color(0xFFFFF8E1),
-                      iconColor: colorOchre,
-                      title: context.currentLanguage == AppLanguage.hi
-                          ? 'मंडी व्यापार अनुभव (Peer Price Intel)'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'Mandi Vyapar • Peer Insights'
-                              : 'Mandi Trade Intel & Feedback'),
-                      subtitle: context.currentLanguage == AppLanguage.hi
-                          ? 'किस मंडी में आज क्या रेट मिला, किसानों द्वारा सीधा अपडेट'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'Kis mandi mein sarson, gehu ka bhav kya mila direct farmer update'
-                              : 'Verified real spot price reports directly from fellow farmers'),
-                    ),
-                    const SizedBox(height: 10),
-
-                    _buildCommunityFeatureCard(
-                      icon: Icons.support_agent_rounded,
-                      iconBg: const Color(0xFFEFF6FF),
-                      iconColor: const Color(0xFF1D4ED8),
-                      title: context.currentLanguage == AppLanguage.hi
-                          ? 'विशेषज्ञ परामर्श एवं सहायता'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'Krishi Salahkar & Expert Advice'
-                              : 'Agronomist & Expert Helpdesk'),
-                      subtitle: context.currentLanguage == AppLanguage.hi
-                          ? 'कृषि वैज्ञानिकों व अग्रणी किसानों द्वारा सत्यापित समाधान'
-                          : (context.currentLanguage == AppLanguage.hinglish
-                              ? 'ICAR aur Krishi Vigyan Kendra ke verified crop protocols'
-                              : 'Verified crop protocols backed by ICAR and agri experts'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCommunityFeatureCard({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorHairline),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: colorStoneText,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: colorStoneMuted,
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ==========================================
   // 8. 13 FEATURES OFF-CANVAS SHEET
@@ -2398,7 +2596,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
 
-              // Feature List
+              // Feature List: Sequential F-01 to F-08 dynamically localized
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.all(16),
@@ -2423,20 +2621,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     _buildFeatureTile(
                       code: 'F-03',
-                      title: context.tr('drawer_f2_title'),
-                      desc: context.tr('drawer_f2_desc'),
+                      title: context.tr('drawer_f3_title'),
+                      desc: context.tr('drawer_f3_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const VoiceChatScreen());
+                        _navigateTo(const CommunityPaletteScreen());
                       },
                     ),
                     _buildFeatureTile(
                       code: 'F-04',
-                      title: context.tr('dock_community'),
-                      desc: context.tr('community_modal_sub'),
+                      title: context.tr('drawer_f4_title'),
+                      desc: context.tr('drawer_f4_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _showKrishiCommunityModal();
+                        _navigateTo(const MandiScreen());
                       },
                     ),
                     _buildFeatureTile(
@@ -2445,7 +2643,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       desc: context.tr('drawer_f5_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const DashboardScreen());
+                        _navigateTo(const InsuranceScreen());
                       },
                     ),
                     _buildFeatureTile(
@@ -2454,34 +2652,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       desc: context.tr('drawer_f6_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const MandiScreen());
+                        _navigateTo(const GisTelemetryScreen());
                       },
                     ),
                     _buildFeatureTile(
                       code: 'F-07',
-                      title: context.tr('drawer_f8_title'),
-                      desc: context.tr('drawer_f8_desc'),
+                      title: context.tr('drawer_f7_title'),
+                      desc: context.tr('drawer_f7_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const InsuranceScreen());
+                        _navigateTo(const FieldPaletteScreen());
                       },
                     ),
                     _buildFeatureTile(
                       code: 'F-08',
-                      title: context.tr('drawer_f9_title'),
-                      desc: context.tr('drawer_f9_desc'),
+                      title: context.tr('drawer_f8_title'),
+                      desc: context.tr('drawer_f8_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const DashboardScreen());
+                        _navigateTo(const SettingsScreen());
                       },
                     ),
                     _buildFeatureTile(
                       code: 'F-09',
-                      title: context.tr('drawer_f13_title'),
-                      desc: context.tr('drawer_f13_desc'),
+                      title: context.tr('drawer_f9_title'),
+                      desc: context.tr('drawer_f9_desc'),
                       onTap: () {
                         Navigator.pop(context);
-                        _navigateTo(const SettingsScreen());
+                        _navigateTo(const MarketplaceScreen());
                       },
                     ),
                   ],

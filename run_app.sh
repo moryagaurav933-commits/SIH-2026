@@ -99,14 +99,26 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
     cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 fi
 
-if [ ! -d "venv" ]; then
-    echo -e "${BLUE}   Creating Python virtual environment...${NC}"
-    python3 -m venv venv
-    venv/bin/pip install -q --upgrade pip
-    venv/bin/pip install -q -r requirements.txt
+if [ ! -d "venv" ] || [ ! -x "venv/bin/python3" ]; then
+    echo -e "${BLUE}   Setting up Python virtual environment...${NC}"
+    rm -rf venv
+    if [ -f "$PROJECT_ROOT/.venv311/bin/python" ]; then
+        ln -s "$PROJECT_ROOT/.venv311" venv
+    elif command -v uv &> /dev/null; then
+        uv venv venv --python 3.11
+        uv pip install -q -r requirements.txt --python venv/bin/python
+    else
+        python3 -m venv venv
+        venv/bin/pip install -q --upgrade pip
+        venv/bin/pip install -q -r requirements.txt
+    fi
 elif ! venv/bin/python3 -c "import fastapi, torch, sqlalchemy, aiosqlite" 2>/dev/null; then
     echo -e "${BLUE}   Installing missing dependencies in venv...${NC}"
-    venv/bin/pip install -q -r requirements.txt
+    if command -v uv &> /dev/null; then
+        uv pip install -q -r requirements.txt --python venv/bin/python
+    else
+        venv/bin/pip install -q -r requirements.txt
+    fi
 fi
 
 # Ensure database tables and disease knowledge base exist

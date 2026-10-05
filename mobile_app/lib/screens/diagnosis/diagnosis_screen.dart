@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import '../../db/local_db.dart';
 import '../../localization/app_translations.dart';
 import '../../providers/language_provider.dart';
 import '../../services/cv_service.dart';
+import '../../services/device_permission_service.dart';
 import '../../utils/design_tokens.dart';
 import '../voice_chat/voice_chat_screen.dart';
 
@@ -724,11 +726,16 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
   Widget _buildCrazyDiseasePaletteView() {
     final result = _result!;
     final bool isHealthy = result.isHealthy;
-    final bool isLowConfidence = result.isLowConfidence || result.isCropMismatch;
+    final bool isNoLeaf = result.diseaseName.toLowerCase().contains('no leaf') ||
+        result.diseaseName.toLowerCase().contains('no_leaf') ||
+        (result.confidence == 0.0 && !result.isHealthy);
+    final bool isLowConfidence = isNoLeaf || result.isLowConfidence || result.isCropMismatch;
     const Color lowConfColor = Color(0xFFEF6C00);
-    final Color accentColor = isLowConfidence
-        ? lowConfColor
-        : (isHealthy ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F));
+    final Color accentColor = isNoLeaf
+        ? const Color(0xFFD32F2F)
+        : (isLowConfidence
+            ? lowConfColor
+            : (isHealthy ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F)));
     final String confidencePct = '${(result.confidence * 100).toStringAsFixed(1)}%';
 
     return SingleChildScrollView(
@@ -772,25 +779,29 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                         child: Row(
                           children: [
                             Icon(
-                              result.isCropMismatch
-                                  ? Icons.grass_rounded
-                                  : (isLowConfidence
-                                      ? Icons.help_outline_rounded
-                                      : (isHealthy
-                                          ? Icons.check_circle_rounded
-                                          : Icons.warning_amber_rounded)),
+                              isNoLeaf
+                                  ? Icons.no_photography_rounded
+                                  : (result.isCropMismatch
+                                      ? Icons.grass_rounded
+                                      : (isLowConfidence
+                                          ? Icons.help_outline_rounded
+                                          : (isHealthy
+                                              ? Icons.check_circle_rounded
+                                              : Icons.warning_amber_rounded))),
                               size: 14,
                               color: Colors.white,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              result.isCropMismatch
-                                  ? 'WRONG CROP'
-                                  : (isLowConfidence
-                                      ? 'UNCERTAIN'
-                                      : (isHealthy
-                                          ? 'HEALTHY FOLIAGE'
-                                          : 'DISEASE DETECTED')),
+                              isNoLeaf
+                                  ? 'NO LEAF DETECTED'
+                                  : (result.isCropMismatch
+                                      ? 'WRONG CROP'
+                                      : (isLowConfidence
+                                          ? 'UNCERTAIN'
+                                          : (isHealthy
+                                              ? 'HEALTHY FOLIAGE'
+                                              : 'DISEASE DETECTED'))),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -803,11 +814,12 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                       ),
                       const Spacer(),
                       Text(
-                        // On a crop mismatch the headline percentage is misleading,
-                        // so show how much the model thinks it is that crop instead.
-                        result.isCropMismatch
-                            ? 'Crop: ${(result.cropMatchConfidence * 100).toStringAsFixed(1)}%'
-                            : 'Match: $confidencePct',
+                        // On a crop mismatch or no-leaf the headline percentage is adapted
+                        isNoLeaf
+                            ? 'Match: 0.0%'
+                            : (result.isCropMismatch
+                                ? 'Crop: ${(result.cropMatchConfidence * 100).toStringAsFixed(1)}%'
+                                : 'Match: $confidencePct'),
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -825,31 +837,38 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                     margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: lowConfColor.withValues(alpha: 0.10),
+                      color: (isNoLeaf ? const Color(0xFFD32F2F) : lowConfColor).withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: lowConfColor.withValues(alpha: 0.45)),
+                      border: Border.all(color: (isNoLeaf ? const Color(0xFFD32F2F) : lowConfColor).withValues(alpha: 0.45)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline_rounded,
-                            size: 20, color: lowConfColor),
+                        Icon(
+                          isNoLeaf ? Icons.error_outline_rounded : Icons.info_outline_rounded,
+                          size: 20,
+                          color: isNoLeaf ? const Color(0xFFD32F2F) : lowConfColor,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            result.isCropMismatch
-                                ? (result.lowConfidenceMessageEn.isNotEmpty
-                                    ? result.lowConfidenceMessageEn
-                                    : 'This photo does not look like the selected crop. '
-                                        'Please select the correct crop before using this result.')
-                                : (result.lowConfidenceMessageEn.isNotEmpty
-                                    ? result.lowConfidenceMessageEn
-                                    : 'Low confidence - please retake the photo in good light, '
-                                        'close-up and in focus.'),
-                            style: const TextStyle(
+                            isNoLeaf
+                                ? (result.lowConfidenceMessageHi.isNotEmpty
+                                    ? result.lowConfidenceMessageHi
+                                    : 'प्रदान की गई छवि में फसल की पत्ती नहीं मिली। कृपया केवल पौधे की पत्ती की स्पष्ट और नजदीकी फोटो लें।')
+                                : (result.isCropMismatch
+                                    ? (result.lowConfidenceMessageEn.isNotEmpty
+                                        ? result.lowConfidenceMessageEn
+                                        : 'This photo does not look like the selected crop. '
+                                            'Please select the correct crop before using this result.')
+                                    : (result.lowConfidenceMessageEn.isNotEmpty
+                                        ? result.lowConfidenceMessageEn
+                                        : 'Low confidence - please retake the photo in good light, '
+                                            'close-up and in focus.')),
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF8A4B00),
+                              color: isNoLeaf ? const Color(0xFFB71C1C) : const Color(0xFF8A4B00),
                               height: 1.35,
                             ),
                           ),
@@ -865,7 +884,9 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        result.diseaseNameHi.isNotEmpty ? result.diseaseNameHi : result.diseaseName,
+                        isNoLeaf
+                            ? (result.diseaseNameHi.isNotEmpty ? result.diseaseNameHi : 'प्रदान की गई छवि में कोई पत्ती नहीं मिली')
+                            : (result.diseaseNameHi.isNotEmpty ? result.diseaseNameHi : result.diseaseName),
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -875,86 +896,88 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        result.diseaseName,
+                        isNoLeaf ? 'NO leaf detected in the image you provide' : result.diseaseName,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: colorStoneMuted,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      if (!isNoLeaf) ...[
+                        const SizedBox(height: 12),
 
-                      // Pathogen Tag
-                      if (result.pathogen.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: colorBg,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: colorHairline),
+                        // Pathogen Tag
+                        if (result.pathogen.isNotEmpty && result.pathogen.toLowerCase() != 'none')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: colorBg,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: colorHairline),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.biotech_rounded, size: 16, color: colorPrimary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Pathogen: ${result.pathogen}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorStoneText,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.biotech_rounded, size: 16, color: colorPrimary),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Pathogen: ${result.pathogen}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
-                                  fontWeight: FontWeight.w600,
-                                  color: colorStoneText,
+
+                        const SizedBox(height: 14),
+
+                        // Severity Meter
+                        Row(
+                          children: [
+                            const Text(
+                              'SEVERITY:',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: colorStoneMuted,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            for (int i = 1; i <= 5; i++)
+                              Container(
+                                width: 24,
+                                height: 6,
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: i <= _severityLevel(result.severity)
+                                      ? _getSeverityColor(result.severity)
+                                      : colorHairline,
+                                  borderRadius: BorderRadius.circular(3),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-
-                      const SizedBox(height: 14),
-
-                      // Severity Meter
-                      Row(
-                        children: [
-                          const Text(
-                            'SEVERITY:',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: colorStoneMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          for (int i = 1; i <= 5; i++)
-                            Container(
-                              width: 24,
-                              height: 6,
-                              margin: const EdgeInsets.only(right: 4),
-                              decoration: BoxDecoration(
-                                color: i <= _severityLevel(result.severity)
-                                    ? _getSeverityColor(result.severity)
-                                    : colorHairline,
-                                borderRadius: BorderRadius.circular(3),
+                            const SizedBox(width: 6),
+                            Text(
+                              result.severity.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _getSeverityColor(result.severity),
                               ),
                             ),
-                          const SizedBox(width: 6),
-                          Text(
-                            result.severity.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: _getSeverityColor(result.severity),
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
 
                 // Farmer Immediate Action Callout Banner
-                if (result.farmerAction.isNotEmpty || result.immediateAction.isNotEmpty)
+                if (!isNoLeaf && (result.farmerAction.isNotEmpty || result.immediateAction.isNotEmpty))
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -1005,27 +1028,31 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
           ),
           const SizedBox(height: spacingLg),
 
-          // ─── 3-TAB DISEASE PALETTE SELECTOR ─────────────────
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(16),
+          if (isNoLeaf)
+            _buildNoLeafGuidanceCard()
+          else ...[
+            // ─── 3-TAB DISEASE PALETTE SELECTOR ─────────────────
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  _buildPaletteTabItem(0, '🔍 लक्षण व कारण', 'Symptoms'),
+                  _buildPaletteTabItem(1, '💊 उपचार मैट्रिक्स', 'Treatments'),
+                  _buildPaletteTabItem(2, '🛡️ रोकथाम व संदर्भ', 'Prevention'),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                _buildPaletteTabItem(0, '🔍 लक्षण व कारण', 'Symptoms'),
-                _buildPaletteTabItem(1, '💊 उपचार मैट्रिक्स', 'Treatments'),
-                _buildPaletteTabItem(2, '🛡️ रोकथाम व संदर्भ', 'Prevention'),
-              ],
-            ),
-          ),
-          const SizedBox(height: spacingMd),
+            const SizedBox(height: spacingMd),
 
-          // ─── TAB CONTENT DISPLAY ─────────────────────────────
-          if (_activePaletteTab == 0) _buildSymptomsTab(result),
-          if (_activePaletteTab == 1) _buildTreatmentsTab(result),
-          if (_activePaletteTab == 2) _buildPreventionTab(result),
+            // ─── TAB CONTENT DISPLAY ─────────────────────────────
+            if (_activePaletteTab == 0) _buildSymptomsTab(result),
+            if (_activePaletteTab == 1) _buildTreatmentsTab(result),
+            if (_activePaletteTab == 2) _buildPreventionTab(result),
+          ],
 
           const SizedBox(height: spacingLg),
 
@@ -1113,9 +1140,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('निदान टेलीमेट्री KVK व कृषि विज्ञान केंद्र में सिंक हो गई है।'),
+                      SnackBar(
+                        content: const Text('निदान टेलीमेट्री KVK व कृषि विज्ञान केंद्र में सिंक हो गई है।'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     );
                   },
@@ -1133,6 +1164,123 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
           ),
           const SizedBox(height: spacingLg),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoLeafGuidanceCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEF5350).withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD32F2F).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEBEE),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.info_outline_rounded, color: Color(0xFFD32F2F), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'पत्ती की पहचान नहीं हुई (No Leaf Found)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFC62828),
+                      ),
+                    ),
+                    Text(
+                      'फोटो में कोई फसल या पत्ती नहीं दिखाई दे रही है',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorStoneMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'सटीक AI रोग पहचान के लिए सुझाव:',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: colorStoneText,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildGuidanceBullet('🌿 कैमरे को सीधे पौधे या प्रभावित पत्ती के 10-15 सेमी पास रखें।'),
+          _buildGuidanceBullet('☀️ अच्छी प्राकृतिक रोशनी में स्थिर फोटो लें ताकि पत्ती साफ़ दिखे।'),
+          _buildGuidanceBullet('🚫 पृष्ठभूमि की वस्तुओं (दीवार, चेहरा, मेज़ या खाली ज़मीन) से बचें।'),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _takePhoto,
+                  icon: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                  label: const Text('कैमरा खोलें', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickFromGallery,
+                  icon: const Icon(Icons.photo_library_rounded, color: colorPrimary, size: 18),
+                  label: const Text('गैलरी से चुनें', style: TextStyle(fontWeight: FontWeight.w700, color: colorPrimary)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: colorPrimary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuidanceBullet(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12.5,
+          color: Color(0xFF455A64),
+          height: 1.35,
+        ),
       ),
     );
   }
@@ -1423,16 +1571,33 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
   // ACTIONS & PIPELINE INVOCATION
   // ==========================================
   Future<void> _takePhoto() async {
+    await DevicePermissionService.requestCamera();
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.camera,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      await _runDiagnosisPipeline(bytes);
+    try {
+      final picked = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        await _runDiagnosisPipeline(bytes);
+      }
+    } catch (e) {
+      debugPrint('Take photo error ($e), falling back to gallery/files:');
+      try {
+        final picked = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        if (picked != null) {
+          final bytes = await picked.readAsBytes();
+          await _runDiagnosisPipeline(bytes);
+        }
+      } catch (_) {}
     }
   }
 
@@ -1454,7 +1619,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
     setState(() {
       _chosenCrop = cropHint;
     });
-    await _runDiagnosisPipeline(null);
+    try {
+      final byteData = await rootBundle.load('assets/images/prod_01.jpg');
+      final bytes = byteData.buffer.asUint8List();
+      await _runDiagnosisPipeline(bytes);
+    } catch (_) {
+      await _runDiagnosisPipeline(null);
+    }
   }
 
   Future<void> _runDiagnosisPipeline(Uint8List? imageBytes) async {
@@ -1470,19 +1641,25 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
         'UP_LKO',
       );
 
-      // Save to offline local database
-      await LocalDB().saveDiagnosis({
-        'disease_name': result.diseaseName,
-        'disease_name_hi': result.diseaseNameHi,
-        'crop_type': result.cropType,
-        'confidence': result.confidence,
-        'severity': result.severity,
-        'treatment': result.chemicalCure.isNotEmpty ? result.chemicalCure : result.treatmentHi,
-        'diagnosed_at': DateTime.now().toIso8601String(),
-        'gps_lat': 26.8467,
-        'gps_lon': 80.9462,
-        'synced': 1,
-      });
+      // Save to offline local database only if genuine plant leaf detected
+      final isNoLeaf = result.diseaseName.toLowerCase().contains('no leaf') ||
+          result.diseaseName.toLowerCase().contains('no_leaf') ||
+          (result.confidence == 0.0 && !result.isHealthy);
+
+      if (!isNoLeaf) {
+        await LocalDB().saveDiagnosis({
+          'disease_name': result.diseaseName,
+          'disease_name_hi': result.diseaseNameHi,
+          'crop_type': result.cropType,
+          'confidence': result.confidence,
+          'severity': result.severity,
+          'treatment': result.chemicalCure.isNotEmpty ? result.chemicalCure : result.treatmentHi,
+          'diagnosed_at': DateTime.now().toIso8601String(),
+          'gps_lat': 26.8467,
+          'gps_lon': 80.9462,
+          'synced': 1,
+        });
+      }
 
       setState(() {
         _result = result;
@@ -1491,7 +1668,23 @@ class _DiagnosisScreenState extends State<DiagnosisScreen>
       });
     } catch (e) {
       debugPrint('Diagnosis error: $e');
-      final fallback = await _cvService.diagnose(null, _chosenCrop ?? 'all');
+      final fallback = DiagnosisResult(
+        diseaseName: 'NO leaf detected in the image you provide',
+        diseaseNameHi: 'प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)',
+        confidence: 0.0,
+        severity: 'low',
+        treatmentEn: 'None',
+        treatmentHi: 'None',
+        cropType: _chosenCrop ?? 'None',
+        isHealthy: false,
+        isLowConfidence: true,
+        isCropMismatch: true,
+        lowConfidenceMessageEn: 'Could not detect or verify a crop leaf in the photo. Please retake a clear close-up photograph of a plant leaf.',
+        lowConfidenceMessageHi: 'प्रदान की गई छवि में फसल की पत्ती की पहचान नहीं हो सकी। कृपया अच्छी रोशनी में पौधे की पत्ती की स्पष्ट फोटो दोबारा लें।',
+        modelVersion: 'Krishi-Saarthi Botanical Guard',
+        immediateAction: 'Please provide a clear photograph of a crop leaf.',
+        pathogen: 'None',
+      );
       setState(() {
         _result = fallback;
         _isAnalyzing = false;

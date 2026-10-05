@@ -147,29 +147,63 @@ if ($Web) {
   $webDir = Join-Path $root "mobile_app\build\web"
   $index  = Join-Path $webDir "index.html"
 
-  if (-not (Test-Path $index)) {
-    Write-Host "[web] no build found, building now (takes ~1 min)..." -ForegroundColor Cyan
+  $needsWebBuild = -not (Test-Path $index)
+  if (-not $needsWebBuild) {
+    $builtAt = (Get-Item $index).LastWriteTimeUtc
+    foreach ($sourcePath in @(
+      (Join-Path $root "mobile_app\lib\services\cv_service.dart"),
+      (Join-Path $root "mobile_app\lib\services\api_config.dart")
+    )) {
+      if ((Test-Path $sourcePath) -and (Get-Item $sourcePath).LastWriteTimeUtc -gt $builtAt) {
+        $needsWebBuild = $true
+        break
+      }
+    }
+  }
+
+  if ($needsWebBuild) {
+    Write-Host "[web] diagnosis code changed or no build exists; building Flutter web app..." -ForegroundColor Cyan
     Push-Location (Join-Path $root "mobile_app")
     try {
       flutter build web --release
+      if ($LASTEXITCODE -ne 0) { throw "Flutter web build exited with code $LASTEXITCODE" }
     } catch {
+      Pop-Location
       Write-Host "[web] build failed - run 'flutter build web' in mobile_app to see why" -ForegroundColor Red
+      exit 1
     }
     Pop-Location
   }
 
+  $proxyReady = $false
   if (Test-Port 8080) {
-    Write-Host "[web] already running on http://127.0.0.1:8080" -ForegroundColor DarkGray
+    try {
+      $proxyStatus = Invoke-RestMethod -Uri "http://127.0.0.1:8080/__local_proxy_health" -TimeoutSec 3
+      $proxyReady = $proxyStatus.status -eq "healthy"
+    } catch { }
+    if (-not $proxyReady) {
+      Write-Host "[web] port 8080 is occupied by a server without the local API proxy." -ForegroundColor Red
+      Write-Host "[web] stop that server, then run this launcher again." -ForegroundColor Yellow
+      exit 1
+    }
+    Write-Host "[web] local web/API proxy already running on http://127.0.0.1:8080" -ForegroundColor DarkGray
   } else {
-    Write-Host "[web] starting on http://127.0.0.1:8080 ..." -ForegroundColor Cyan
+    Write-Host "[web] starting local web/API proxy on http://127.0.0.1:8080 ..." -ForegroundColor Cyan
     Start-Process -FilePath $py `
-      -ArgumentList "-m","http.server","8080","--bind","127.0.0.1" `
-      -WorkingDirectory $webDir `
+      -ArgumentList (Join-Path $root "scripts\local_web_proxy.py") `
+      -WorkingDirectory $root `
       -WindowStyle Hidden
-    Start-Sleep -Seconds 4
+    $proxyReady = $false
+    for ($i = 0; $i -lt 15; $i++) {
+      Start-Sleep -Seconds 1
+      try {
+        $proxyStatus = Invoke-RestMethod -Uri "http://127.0.0.1:8080/__local_proxy_health" -TimeoutSec 2
+        if ($proxyStatus.status -eq "healthy") { $proxyReady = $true; break }
+      } catch { }
+    }
   }
 
-  if (Test-Port 8080) {
+  if ($proxyReady) {
     Write-Host "[web] up at http://127.0.0.1:8080" -ForegroundColor Green
     Start-Process "http://127.0.0.1:8080/"
     Write-Host "[web] opening in your browser..." -ForegroundColor Green

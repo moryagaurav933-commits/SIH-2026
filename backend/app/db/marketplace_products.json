@@ -1,0 +1,1206 @@
+[
+  {
+    "id": "prod_01",
+    "title": "Saaf Fungicide (Carbendazim 12% + Mancozeb 63% WP)",
+    "scientific_name": "Carbendazim 12% + Mancozeb 63% WP",
+    "brand": "UPL Agro",
+    "category": "fungicides",
+    "pack_size": "500 g",
+    "price": 240.0,
+    "mrp": 350.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_01.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Tomato",
+      "Chilli",
+      "Potato",
+      "Groundnut",
+      "Paddy"
+    ],
+    "target_diseases": [
+      "Leaf Blight",
+      "Anthracnose",
+      "Blast",
+      "Fruit Rot",
+      "Tikka"
+    ],
+    "dosage": "2 g per litre of water (500 g per acre foliar spray)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_02",
+    "title": "Amistar Top (Azoxystrobin 18.2% + Difenoconazole 11.4% SC)",
+    "scientific_name": "Azoxystrobin 18.2% + Difenoconazole 11.4% SC",
+    "brand": "Syngenta",
+    "category": "fungicides",
+    "pack_size": "200 ml",
+    "price": 620.0,
+    "mrp": 850.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_02.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Paddy",
+      "Tomato",
+      "Onion",
+      "Wheat",
+      "Chilli"
+    ],
+    "target_diseases": [
+      "Sheath Blight",
+      "Powdery Mildew",
+      "Alternaria Leaf Blight"
+    ],
+    "dosage": "1 ml per litre of water (200 ml per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_03",
+    "title": "Ridomil Gold (Metalaxyl-M 4% + Mancozeb 64% WP)",
+    "scientific_name": "Metalaxyl-M 4% + Mancozeb 64% WP",
+    "brand": "Syngenta",
+    "category": "fungicides",
+    "pack_size": "500 g",
+    "price": 490.0,
+    "mrp": 680.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_03.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Potato",
+      "Tomato",
+      "Grapes",
+      "Mustard"
+    ],
+    "target_diseases": [
+      "Late Blight",
+      "Downy Mildew",
+      "White Rust"
+    ],
+    "dosage": "2.5 g per litre of water (500 g per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_04",
+    "title": "Bavistin 50% WP (Carbendazim Systemic Fungicide)",
+    "scientific_name": "Carbendazim 50% WP",
+    "brand": "Crystal Crop",
+    "category": "fungicides",
+    "pack_size": "250 g",
+    "price": 180.0,
+    "mrp": 260.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_04.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Cotton",
+      "Vegetables",
+      "Pulses",
+      "Oilseeds"
+    ],
+    "target_diseases": [
+      "Damping Off",
+      "Root Rot",
+      "Seedling Wilt",
+      "Smut"
+    ],
+    "dosage": "2 g per kg seed treatment or 1.5 g per litre foliar spray",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_05",
+    "title": "Blitox 50 WP (Copper Oxychloride 50% WP)",
+    "scientific_name": "Copper Oxychloride 50% WP",
+    "brand": "Rallis India",
+    "category": "fungicides",
+    "pack_size": "500 g",
+    "price": 340.0,
+    "mrp": 450.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_05.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.6,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Citrus",
+      "Apple",
+      "Tomato",
+      "Paddy",
+      "Potato"
+    ],
+    "target_diseases": [
+      "Bacterial Leaf Spot",
+      "Citrus Canker",
+      "False Smut"
+    ],
+    "dosage": "3 g per litre of water (600 g per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_06",
+    "title": "Streptocycline 90:10 (Streptomycin + Tetracycline)",
+    "scientific_name": "Streptomycin Sulphate 90% + Tetracycline 10%",
+    "brand": "Hindustan Antibiotics",
+    "category": "fungicides",
+    "pack_size": "6 g x 5 Pcs",
+    "price": 65.0,
+    "mrp": 95.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_06.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Paddy",
+      "Citrus",
+      "Pomegranate",
+      "Tomato"
+    ],
+    "target_diseases": [
+      "Bacterial Leaf Blight (BLB)",
+      "Black Arm",
+      "Canker"
+    ],
+    "dosage": "1 g per 10 litres of water with Copper Oxychloride",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_07",
+    "title": "Tilt 25% EC (Propiconazole Systemic Fungicide)",
+    "scientific_name": "Propiconazole 25% EC",
+    "brand": "Syngenta",
+    "category": "fungicides",
+    "pack_size": "250 ml",
+    "price": 380.0,
+    "mrp": 520.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_07.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Wheat",
+      "Paddy",
+      "Groundnut",
+      "Tea"
+    ],
+    "target_diseases": [
+      "Yellow Rust",
+      "Brown Rust",
+      "Karnal Bunt",
+      "Tikka"
+    ],
+    "dosage": "1 ml per litre of water (200 ml per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_08",
+    "title": "Nativo 75 WG (Tebuconazole 50% + Trifloxystrobin 25%)",
+    "scientific_name": "Tebuconazole 50% + Trifloxystrobin 25% WG",
+    "brand": "Bayer CropScience",
+    "category": "fungicides",
+    "pack_size": "100 g",
+    "price": 720.0,
+    "mrp": 980.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_08.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Paddy",
+      "Mango",
+      "Tomato",
+      "Grapes"
+    ],
+    "target_diseases": [
+      "Neck Blast",
+      "Sheath Blight",
+      "Glume Blotch",
+      "Anthracnose"
+    ],
+    "dosage": "0.8 g per litre of water (120 g per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_09",
+    "title": "Aliette 80% WP (Fosetyl-Al Systemic Fungicide)",
+    "scientific_name": "Fosetyl-Al 80% WP",
+    "brand": "Bayer CropScience",
+    "category": "fungicides",
+    "pack_size": "250 g",
+    "price": 430.0,
+    "mrp": 590.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_09.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Citrus",
+      "Cardamom",
+      "Grapes",
+      "Arecanut"
+    ],
+    "target_diseases": [
+      "Phytophthora Foot Rot",
+      "Gummosis",
+      "Downy Mildew"
+    ],
+    "dosage": "2 g per litre of water or trunk paste",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_10",
+    "title": "Sultaf 80% WDG (Micronized Wettable Sulfur)",
+    "scientific_name": "Sulfur 80% WDG",
+    "brand": "Rallis India",
+    "category": "fungicides",
+    "pack_size": "1 kg",
+    "price": 210.0,
+    "mrp": 310.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_10.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Grapes",
+      "Mango",
+      "Peas",
+      "Apple",
+      "Pulses"
+    ],
+    "target_diseases": [
+      "Powdery Mildew",
+      "Red Spider Mites",
+      "Tikka"
+    ],
+    "dosage": "3 g per litre of water (600 g per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_11",
+    "title": "Coragen (Chlorantraniliprole 18.5% SC)",
+    "scientific_name": "Chlorantraniliprole 18.5% SC",
+    "brand": "FMC Agro",
+    "category": "insecticides",
+    "pack_size": "60 ml",
+    "price": 1120.0,
+    "mrp": 1490.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_11.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Sugarcane",
+      "Rice",
+      "Tomato",
+      "Cabbage",
+      "Soybean"
+    ],
+    "target_diseases": [
+      "Stem Borer",
+      "Fruit Borer",
+      "Diamondback Moth (DBM)"
+    ],
+    "dosage": "0.3 ml per litre of water (60 ml per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_12",
+    "title": "Confidor 17.8% SL (Imidacloprid Systemic Insecticide)",
+    "scientific_name": "Imidacloprid 17.8% SL",
+    "brand": "Bayer CropScience",
+    "category": "insecticides",
+    "pack_size": "100 ml",
+    "price": 320.0,
+    "mrp": 450.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_12.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Cotton",
+      "Chilli",
+      "Tomato",
+      "Okra",
+      "Paddy"
+    ],
+    "target_diseases": [
+      "Aphids",
+      "Jassids",
+      "Whiteflies",
+      "Thrips"
+    ],
+    "dosage": "0.5 ml per litre of water (100 ml per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_13",
+    "title": "Neem Baan Organic Bio-Pesticide (10,000 PPM)",
+    "scientific_name": "Cold Pressed Azadirachtin 10,000 PPM",
+    "brand": "Multiplex Bio",
+    "category": "insecticides",
+    "pack_size": "1 Litre",
+    "price": 299.0,
+    "mrp": 450.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_13.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Vegetables",
+      "Fruits",
+      "Cotton",
+      "Cereals"
+    ],
+    "target_diseases": [
+      "Whitefly",
+      "Leaf Miner",
+      "Caterpillar",
+      "Mites"
+    ],
+    "dosage": "2.5 ml per litre of water",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_14",
+    "title": "Hasper Organic Plant Guard & Protection Spray (Duo)",
+    "scientific_name": "Herbal Bio-Extract Botanical Pest Repellent",
+    "brand": "Hasper Bio",
+    "category": "insecticides",
+    "pack_size": "500 ml x 2 Pcs",
+    "price": 233.0,
+    "mrp": 499.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_14.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.6,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Kitchen Gardens",
+      "Vegetables",
+      "Greenhouse Plots"
+    ],
+    "target_diseases": [
+      "Mealybugs",
+      "Spider Mites",
+      "Aphids",
+      "Mildew"
+    ],
+    "dosage": "Ready-to-spray dual spray bottle",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_15",
+    "title": "Rogor 30% EC (Dimethoate Organophosphate)",
+    "scientific_name": "Dimethoate 30% EC",
+    "brand": "FMC Chemicals",
+    "category": "insecticides",
+    "pack_size": "250 ml",
+    "price": 190.0,
+    "mrp": 270.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_15.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.5,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Chilli",
+      "Mustard",
+      "Cotton",
+      "Vegetables"
+    ],
+    "target_diseases": [
+      "Shoot Borer",
+      "Gall Midge",
+      "Leafhopper",
+      "Mites"
+    ],
+    "dosage": "1.5 ml per litre of water",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_16",
+    "title": "Proclaim 5% SG (Emamectin Benzoate 5% SG)",
+    "scientific_name": "Emamectin Benzoate 5% SG",
+    "brand": "Syngenta",
+    "category": "insecticides",
+    "pack_size": "100 g",
+    "price": 450.0,
+    "mrp": 620.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_16.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Gram",
+      "Pigeon Pea",
+      "Maize",
+      "Cotton",
+      "Tomato"
+    ],
+    "target_diseases": [
+      "Pod Borer (Helicoverpa)",
+      "Bollworm",
+      "Fall Armyworm"
+    ],
+    "dosage": "0.5 g per litre of water (80 g per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_17",
+    "title": "IFFCO Neem Coated Urea (46% Nitrogen Prills)",
+    "scientific_name": "Neem Coated Urea (46% N)",
+    "brand": "IFFCO Kisan",
+    "category": "fertilizers",
+    "pack_size": "45 kg Sack",
+    "price": 266.0,
+    "mrp": 300.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_17.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Wheat",
+      "Paddy",
+      "Sugarcane",
+      "Maize",
+      "All Crops"
+    ],
+    "target_diseases": [
+      "Nitrogen Deficiency",
+      "Stunted Growth",
+      "Leaf Yellowing"
+    ],
+    "dosage": "1 Bag per acre split into 2-3 top dressings",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_18",
+    "title": "IFFCO DAP 18:46:0 (Di-Ammonium Phosphate)",
+    "scientific_name": "Di-Ammonium Phosphate (18% N, 46% P2O5)",
+    "brand": "IFFCO Kisan",
+    "category": "fertilizers",
+    "pack_size": "50 kg Bag",
+    "price": 1350.0,
+    "mrp": 1550.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_18.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Wheat",
+      "Potato",
+      "Mustard",
+      "Pulses",
+      "Oilseeds"
+    ],
+    "target_diseases": [
+      "Phosphorus Deficiency",
+      "Poor Rooting",
+      "Delayed Tillering"
+    ],
+    "dosage": "50 kg per acre as basal dose at sowing",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_19",
+    "title": "Mahafeed NPK 19-19-19 (100% Water Soluble)",
+    "scientific_name": "Balanced NPK 19:19:19 Micro-Crystals",
+    "brand": "Mahafeed Fert",
+    "category": "fertilizers",
+    "pack_size": "1 kg Pack",
+    "price": 145.0,
+    "mrp": 220.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_19.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Vegetables",
+      "Fruits",
+      "Floriculture",
+      "Cereals"
+    ],
+    "target_diseases": [
+      "General Malnutrition",
+      "Slow Growth",
+      "Leaf Chlorosis"
+    ],
+    "dosage": "5 g per litre foliar spray or 3 kg per acre via drip",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_20",
+    "title": "IFFCO Potash (Muriate of Potash MOP 0:0:60)",
+    "scientific_name": "Potassium Chloride (60% K2O)",
+    "brand": "IFFCO Kisan",
+    "category": "fertilizers",
+    "pack_size": "50 kg Bag",
+    "price": 1650.0,
+    "mrp": 1900.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_20.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Paddy",
+      "Potato",
+      "Sugarcane",
+      "Cotton",
+      "Banana"
+    ],
+    "target_diseases": [
+      "Potassium Deficiency",
+      "Weak Stems",
+      "Low Disease Defense"
+    ],
+    "dosage": "25-50 kg per acre based on soil test report",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_21",
+    "title": "Aangi Plant Food Sticks / Nutrient Spikes (Pack of 30)",
+    "scientific_name": "Slow-Release NPK Micro-Nutrient Spike Tablets",
+    "brand": "Aangienterprise",
+    "category": "fertilizers",
+    "pack_size": "Pack of 30",
+    "price": 233.0,
+    "mrp": 499.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_21.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Potted Crops",
+      "Vegetable Plots",
+      "Nursery Beds"
+    ],
+    "target_diseases": [
+      "Root Starvation",
+      "Pale Foliage",
+      "Slow Development"
+    ],
+    "dosage": "Insert 2-4 sticks into soil near root perimeter every 60 days",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_22",
+    "title": "Chelated Zinc (Zn-EDTA 12% Micronutrient)",
+    "scientific_name": "Zinc EDTA 12% Chelate",
+    "brand": "Aries Agro",
+    "category": "fertilizers",
+    "pack_size": "500 g",
+    "price": 175.0,
+    "mrp": 250.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_22.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Paddy",
+      "Maize",
+      "Citrus",
+      "Tomato",
+      "Wheat"
+    ],
+    "target_diseases": [
+      "Khaira Disease in Rice",
+      "Little Leaf",
+      "White Bud in Maize"
+    ],
+    "dosage": "1 g per litre of water (200 g per acre foliar spray)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_23",
+    "title": "Calcium Nitrate + Boron Granular Crop Nutrition",
+    "scientific_name": "Calcium Nitrate (18.8% Ca, 15.5% N) + 0.3% Boron",
+    "brand": "YaraLiva",
+    "category": "fertilizers",
+    "pack_size": "1 kg Pack",
+    "price": 195.0,
+    "mrp": 280.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_23.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Tomato",
+      "Chilli",
+      "Pomegranate",
+      "Apple",
+      "Watermelon"
+    ],
+    "target_diseases": [
+      "Blossom End Rot",
+      "Fruit Cracking",
+      "Poor Pollination"
+    ],
+    "dosage": "4 g per litre of water during flowering and fruit setting",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_24",
+    "title": "Humic Acid 98% (Super Potassium Humate Flakes)",
+    "scientific_name": "Potassium Humate 98% Bio-Stimulant",
+    "brand": "Utkarsh Agro",
+    "category": "fertilizers",
+    "pack_size": "1 kg Pack",
+    "price": 320.0,
+    "mrp": 500.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_24.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "All Field Crops",
+      "Vegetables",
+      "Orchards"
+    ],
+    "target_diseases": [
+      "Hard Compact Soil",
+      "Weak Root Mass",
+      "Low Cation Exchange"
+    ],
+    "dosage": "1 g per litre of water or 1 kg per acre soil application",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_25",
+    "title": "Trichoderma Viride Bio-Fungicide (1% WP)",
+    "scientific_name": "Trichoderma viride 2x10^6 CFU/g",
+    "brand": "Anand Agro",
+    "category": "bioSolutions",
+    "pack_size": "1 kg Pack",
+    "price": 160.0,
+    "mrp": 240.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_25.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Chilli",
+      "Tomato",
+      "Ginger",
+      "Turmeric",
+      "Pulses"
+    ],
+    "target_diseases": [
+      "Fusarium Wilt",
+      "Root Rot",
+      "Collar Rot",
+      "Rhizoctonia"
+    ],
+    "dosage": "5 g per kg seed treatment or 2 kg mixed with FYM per acre",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_26",
+    "title": "Pseudomonas Fluorescens Bio-Bactericide",
+    "scientific_name": "Pseudomonas fluorescens 1% WP",
+    "brand": "IPL Biologicals",
+    "category": "bioSolutions",
+    "pack_size": "1 kg Pack",
+    "price": 170.0,
+    "mrp": 250.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_26.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Brinjal",
+      "Tomato",
+      "Ginger",
+      "Banana",
+      "Paddy"
+    ],
+    "target_diseases": [
+      "Bacterial Wilt (Ralstonia)",
+      "Sheath Rot",
+      "Canker"
+    ],
+    "dosage": "10 g per litre for root dip or 2.5 kg per acre soil application",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_27",
+    "title": "Seaweed Extract Bio-Stimulant (Kelp Supreme)",
+    "scientific_name": "Ascophyllum Nodosum Cold Enzymatic Extract",
+    "brand": "Nature Bio",
+    "category": "bioSolutions",
+    "pack_size": "1 Litre",
+    "price": 380.0,
+    "mrp": 550.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_27.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "All Fruit Trees",
+      "Vegetables",
+      "Cotton",
+      "Wheat"
+    ],
+    "target_diseases": [
+      "Frost Damage",
+      "Heat Stress",
+      "Flower Drop",
+      "Chlorosis"
+    ],
+    "dosage": "2 ml per litre of water (400 ml per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_28",
+    "title": "Pure Organic Neem Cake Khali Granules",
+    "scientific_name": "De-oiled Azadirachta Indica Seed Cake",
+    "brand": "Jaivik Kisan",
+    "category": "bioSolutions",
+    "pack_size": "5 kg Sack",
+    "price": 240.0,
+    "mrp": 360.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_28.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Potatoes",
+      "Vegetables",
+      "Orchards",
+      "Nurseries"
+    ],
+    "target_diseases": [
+      "Termites (Dimak)",
+      "Root Nematodes",
+      "White Grubs"
+    ],
+    "dosage": "100 kg per acre during field preparation",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_29",
+    "title": "Redbuild 8-Teeth Heavy Duty Weeding Rake (High Carbon Steel)",
+    "scientific_name": "27cm High Carbon Forged Steel Multi-Tooth Weeder",
+    "brand": "Redbuild Tools",
+    "category": "farmTools",
+    "pack_size": "27 cm Head",
+    "price": 386.0,
+    "mrp": 1999.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_29.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 3.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Field Beds",
+      "Kitchen Gardens",
+      "Orchard Basins"
+    ],
+    "target_diseases": [
+      "Weed Infestation",
+      "Soil Crust",
+      "Poor Aeration"
+    ],
+    "dosage": "Attach to standard wooden/iron pole for rapid manual weeding",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_30",
+    "title": "Kraft Seeds Garden Rake Head (8 Teeth) Heavy Duty Tool",
+    "scientific_name": "Forged Carbon Steel Garden Cleaning & Weeding Attachment",
+    "brand": "Kraft Seeds",
+    "category": "farmTools",
+    "pack_size": "8-Teeth Pro",
+    "price": 549.0,
+    "mrp": 999.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_30.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Terrace Gardens",
+      "Kitchen Plots",
+      "Field Lawns"
+    ],
+    "target_diseases": [
+      "Weeds",
+      "Fallen Leaves",
+      "Soil Clods",
+      "Compacted Beds"
+    ],
+    "dosage": "Fits standard 25mm pipe handle",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_31",
+    "title": "Green India Garden Khurpi for Medium Pots & Field",
+    "scientific_name": "Tempered Steel Hand Hoe with Ergonomic Handle",
+    "brand": "Green India",
+    "category": "farmTools",
+    "pack_size": "1 Tool",
+    "price": 115.0,
+    "mrp": 249.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_31.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "All Vegetable Plots",
+      "Nurseries",
+      "Field Borders"
+    ],
+    "target_diseases": [
+      "Root Weeds",
+      "Soil Compaction",
+      "Furrow Making"
+    ],
+    "dosage": "Hand-operated tool for deep root extraction",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_32",
+    "title": "Green India 4-Piece Garden & Nursery Hand Tool Set",
+    "scientific_name": "Trowel + Cultivator + Transplanter + Weeding Fork Set",
+    "brand": "Green India",
+    "category": "farmTools",
+    "pack_size": "4 Tools Set",
+    "price": 280.0,
+    "mrp": 599.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_32.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.6,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Nurseries",
+      "Greenhouses",
+      "Raised Beds"
+    ],
+    "target_diseases": [
+      "Transplant Shock",
+      "Hard Soil",
+      "Seedling Handling"
+    ],
+    "dosage": "Complete set for transplanting, soil aeration and digging",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_33",
+    "title": "Neptune 16-Litre 12V Battery Knapsack Sprayer",
+    "scientific_name": "16L Polypropylene Tank with 12V 8Ah Rechargeable Pump",
+    "brand": "Neptune Agro",
+    "category": "farmTools",
+    "pack_size": "16 Litres",
+    "price": 2450.0,
+    "mrp": 3800.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_33.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "All Field Crops",
+      "Cotton",
+      "Orchards",
+      "Vegetables"
+    ],
+    "target_diseases": [
+      "Inefficient Spraying",
+      "Manual Pumping Fatigue",
+      "Uneven Coverage"
+    ],
+    "dosage": "Sprays up to 25-30 tanks on a single 4-hour charge",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_34",
+    "title": "Heavy Duty Climbing Plant Trellis Net (Creeper Support)",
+    "scientific_name": "UV Stabilized High Density Polyethylene Netting (2m x 10m)",
+    "brand": "Agri Shield",
+    "category": "farmTools",
+    "pack_size": "2m x 10m",
+    "price": 199.0,
+    "mrp": 450.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_34.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.5,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Cucumber",
+      "Tomato",
+      "Bitter Gourd",
+      "Peas",
+      "Beans"
+    ],
+    "target_diseases": [
+      "Fruit Ground Rot",
+      "Fungal Spoilage",
+      "Crooked Vegetables"
+    ],
+    "dosage": "Mount vertically or horizontally on bamboo/iron poles",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_35",
+    "title": "Digital 3-in-1 Soil pH, Moisture & Sunlight Meter",
+    "scientific_name": "Dual-Probe Analog Galvanic Soil Condition Sensor",
+    "brand": "Krishi Tech",
+    "category": "farmTools",
+    "pack_size": "1 Piece",
+    "price": 349.0,
+    "mrp": 799.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_35.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.4,
+    "rating_count": 120,
+    "suitable_crops": [
+      "All Farm Soils",
+      "Greenhouse Substrates",
+      "Orchards"
+    ],
+    "target_diseases": [
+      "Over-Watering",
+      "Acidic/Alkaline Soil",
+      "Nutrient Lockup"
+    ],
+    "dosage": "Insert dual probes 4-6 inches into moist soil for instant dial readout",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_36",
+    "title": "Micro Drip Irrigation 50-Plant Starter Kit",
+    "scientific_name": "Complete Drip Kit with 16mm Mainline + 4mm Tubing + Drippers",
+    "brand": "Jain Agro",
+    "category": "farmTools",
+    "pack_size": "50 Plants Set",
+    "price": 599.0,
+    "mrp": 1299.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_36.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.7,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Vegetables",
+      "Fruit Rows",
+      "Drip Plots"
+    ],
+    "target_diseases": [
+      "Water Wastage",
+      "Weed Germination in Furrows",
+      "Root Stress"
+    ],
+    "dosage": "Direct root zone slow dripping (up to 70% water savings)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_37",
+    "title": "Natural & Herbal Kitchen Garden Seeds (Okra / Bhindi)",
+    "scientific_name": "Abelmoschus esculentus High Yield Hybrid Seeds",
+    "brand": "Natural Herbal",
+    "category": "seeds",
+    "pack_size": "10 g Pack",
+    "price": 213.0,
+    "mrp": 299.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_37.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.5,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Summer & Rainy Season Farms"
+    ],
+    "target_diseases": [
+      "Yellow Vein Mosaic Virus (YVMV)",
+      "Enation Leaf Curl"
+    ],
+    "dosage": "Sow at 45cm x 15cm spacing (1.5 - 2 kg per acre)",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_38",
+    "title": "Syngenta Abhinav F1 Hybrid Tomato Seeds",
+    "scientific_name": "Solanum lycopersicum F1 Hybrid",
+    "brand": "Syngenta Seeds",
+    "category": "seeds",
+    "pack_size": "10 g (3000s)",
+    "price": 780.0,
+    "mrp": 950.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_38.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Rabi & Kharif Vegetable Belts"
+    ],
+    "target_diseases": [
+      "Tomato Leaf Curl Virus (ToLCV)",
+      "Bacterial Wilt"
+    ],
+    "dosage": "40-50 g nursery seeds per acre",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_39",
+    "title": "Mahyco F1 Hybrid Chilli Seeds (Teja 4)",
+    "scientific_name": "Capsicum annuum F1 Hybrid",
+    "brand": "Mahyco Seeds",
+    "category": "seeds",
+    "pack_size": "10 g Pack",
+    "price": 460.0,
+    "mrp": 580.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_39.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.8,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Irrigated & Dryland Chilli Plots"
+    ],
+    "target_diseases": [
+      "Chilli Murda Virus",
+      "Thrips Attack",
+      "Powdery Mildew"
+    ],
+    "dosage": "80-100 g nursery seeds per acre",
+    "application_method": "",
+    "safety_wait_period": ""
+  },
+  {
+    "id": "prod_40",
+    "title": "Bayer Arize 6444 Gold Hybrid Paddy (Rice) Seeds",
+    "scientific_name": "Oryza sativa Hybrid Rice (Arize Gold)",
+    "brand": "Bayer Seeds",
+    "category": "seeds",
+    "pack_size": "3 kg Bag",
+    "price": 890.0,
+    "mrp": 1050.0,
+    "discount_percent": 0.0,
+    "image_asset": "assets/images/prod_40.jpg",
+    "is_assured": true,
+    "offer_tag": null,
+    "rating": 4.9,
+    "rating_count": 120,
+    "suitable_crops": [
+      "Kharif & Boro Rice Ecosystems"
+    ],
+    "target_diseases": [
+      "Bacterial Leaf Blight (BLB)",
+      "Blast",
+      "Stem Rot"
+    ],
+    "dosage": "6 kg seeds per acre",
+    "application_method": "",
+    "safety_wait_period": ""
+  }
+]

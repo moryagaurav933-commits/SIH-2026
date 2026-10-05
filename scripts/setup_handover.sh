@@ -54,9 +54,14 @@ echo -e "   ${GREEN}[PASS]${NC} Found Python: $(python3 --version)"
 # 3. Virtual Environment
 echo -e "\n${CYAN}[3/5] Setting up Virtual Environment (.venv311)...${NC}"
 VENV_DIR="$ROOT_DIR/.venv311"
-if [ ! -d "$VENV_DIR" ]; then
+if [ ! -d "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/python" ]; then
     echo "   Creating virtual environment at $VENV_DIR ..."
-    python3 -m venv "$VENV_DIR"
+    rm -rf "$VENV_DIR"
+    if command -v uv &> /dev/null; then
+        uv venv "$VENV_DIR" --python 3.11
+    else
+        python3 -m venv "$VENV_DIR"
+    fi
     echo -e "   ${GREEN}Virtual environment created.${NC}"
 else
     echo "   Existing virtual environment detected at $VENV_DIR."
@@ -70,8 +75,12 @@ if [ "$1" == "--skip-pip" ]; then
     echo "   Skipping pip install as requested (--skip-pip)."
 elif [ -f "$REQS" ]; then
     echo "   Upgrading pip and installing requirements from $REQS ..."
-    "$PYTHON_BIN" -m pip install --upgrade pip --quiet
-    "$PYTHON_BIN" -m pip install -r "$REQS" --quiet
+    if command -v uv &> /dev/null; then
+        uv pip install -r "$REQS" --python "$PYTHON_BIN" --quiet
+    else
+        "$PYTHON_BIN" -m pip install --upgrade pip --quiet
+        "$PYTHON_BIN" -m pip install -r "$REQS" --quiet
+    fi
     echo -e "   ${GREEN}Dependencies up to date.${NC}"
 fi
 

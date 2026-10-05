@@ -9,6 +9,7 @@ from app.models.mesh import MeshPacket
 from app.models.insurance import InsuranceClaim
 from app.models.fertilizer import FertilizerRegistry
 from app.models.disease_telemetry import DiseaseTelemetry
+from app.models.marketplace import MarketplaceProduct, MarketplaceOrderModel, MarketplaceCoupon
 from app.models.crop_disease import (
     Crop, Disease, DiseaseSymptom, HealthySign,
     FavorableCondition, Treatment, PreventionStep, Source, MLClassMapping
@@ -19,5 +20,6 @@ __all__ = [
     "MandiPrice", "MeshPacket", "InsuranceClaim",
     "FertilizerRegistry", "DiseaseTelemetry",
     "Crop", "Disease", "DiseaseSymptom", "HealthySign",
-    "FavorableCondition", "Treatment", "PreventionStep", "Source", "MLClassMapping"
+    "FavorableCondition", "Treatment", "PreventionStep", "Source", "MLClassMapping",
+    "MarketplaceProduct", "MarketplaceOrderModel", "MarketplaceCoupon",
 ]

@@ -166,16 +166,49 @@ class AIService:
         language: str = "hi",
         history: Optional[List[Dict[str, str]]] = None,
         override_key: Optional[str] = None,
+        image_base64: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Conversational Agronomy AI powered by Gemini with ICAR knowledge fallback.
         Enforces strict free-tier rate limiting (15 requests/hour) and SHA-256 query caching.
         """
+        # Intercept attached images with strict botanical leaf guard
+        if image_base64 and len(image_base64.strip()) > 30:
+            try:
+                from app.services.crop_ai_service import CropAIService
+                from PIL import Image
+                import io, base64
+                clean_b64 = image_base64.split("base64,", 1)[1] if "base64," in image_base64 else image_base64
+                img_bytes = base64.b64decode(clean_b64)
+                pil_img = Image.open(io.BytesIO(img_bytes))
+                is_leaf, leaf_score, reason = CropAIService.get_instance().verify_leaf_presence(pil_img)
+                if not is_leaf:
+                    no_leaf_msgs = {
+                        "hi": "प्रदान की गई छवि में कोई फसल या पत्ती नहीं मिली (NO leaf detected in the image you provide)। कृपया सटीक निदान व दवा की सलाह के लिए केवल पौधे की पत्ती की स्पष्ट और नजदीकी तस्वीर भेजें।",
+                        "en": "No crop leaf detected in the provided image (NO leaf detected in the image you provide). Please upload a clear, close-up photograph of a plant leaf for accurate diagnosis.",
+                        "pa": "ਪ੍ਰਦਾਨ ਕੀਤੀ ਤਸਵੀਰ ਵਿੱਚ ਕੋਈ ਪੱਤਾ ਜਾਂ ਫਸਲ ਨਹੀਂ ਮਿਲੀ। ਕਿਰਪਾ ਕਰਕੇ ਪੌਦੇ ਦੇ ਪੱਤੇ ਦੀ ਸਾਫ਼ ਅਤੇ ਨੇੜਿਓਂ ਤਸਵੀਰ ਭੇਜੋ।",
+                        "mr": "दिलेल्या छायाचित्रात कोणतेही पान किंवा पीक आढळले नाही. अचूक निदानासाठी कृपया वनस्पतींच्या पानाचा स्पष्ट व जवळचा फोटो पाठवा.",
+                    }
+                    reply_text = no_leaf_msgs.get(language.lower(), no_leaf_msgs["hi"])
+                    return {
+                        "success": False,
+                        "status": "no_leaf_detected",
+                        "source": "offline_leaf_guard",
+                        "model": "krishi-saarthi-leaf-guard",
+                        "is_leaf_detected": False,
+                        "reply": reply_text,
+                        "language": language,
+                        "offline_fallback": True,
+                    }
+            except Exception as e:
+                logger.warning(f"Leaf guard check in chat error: {e}")
+
         api_key = cls.get_api_key(override_key)
 
         # 1. If Gemini API key is present, check rate limit quota
         if api_key:
-            cache_key = "chat_" + hashlib.sha256(f"{message.strip().lower()}_{language}".encode()).hexdigest()
+            img_hash_part = image_base64[:100] if image_base64 else ""
+            cache_key = "chat_" + hashlib.sha256(f"{message.strip().lower()}_{language}_{img_hash_part}".encode()).hexdigest()
             allowed, remaining, reset_in, cached_data = gemini_limiter.check_and_record(cache_key=cache_key)
 
             if cached_data:
@@ -209,8 +242,19 @@ class AIService:
                     "भाषा: किसान के प्रश्न के अनुसार " + ("सरल और सम्मानजनक हिंदी" if language == "hi" else "clear English") + " में उत्तर दें।"
                 )
 
+                user_parts = [{"text": system_prompt + "\n\nकिसान का सवाल: " + message}]
+                if image_base64 and len(image_base64.strip()) > 30:
+                    clean_b64 = image_base64.split("base64,", 1)[1] if "base64," in image_base64 else image_base64
+                    mime_type = "image/png" if "png" in image_base64[:30].lower() else "image/jpeg"
+                    user_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": clean_b64
+                        }
+                    })
+
                 contents = [
-                    {"role": "user", "parts": [{"text": system_prompt + "\n\nकिसान का सवाल: " + message}]}
+                    {"role": "user", "parts": user_parts}
                 ]
 
                 # Gemini 2.5 Flash for state-of-the-art agricultural reasoning (Full Intent & Unlimited Tokens)
@@ -278,9 +322,62 @@ class AIService:
         override_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Multimodal leaf diagnosis: Analyzes leaf image with Gemini Vision or ICAR heuristic fallback.
-        Enforces strict free-tier rate limit guard (15 requests/hour) and image caching.
+        Multimodal leaf diagnosis: Analyzes leaf image with Gemini Vision, PyTorch MobileNetV3,
+        or ICAR heuristic fallback. Enforces strict leaf verification guard before any model inference.
         """
+        # 0. Strict botanical leaf verification guard
+        try:
+            from app.services.crop_ai_service import CropAIService
+            from PIL import Image
+            import io, base64
+            clean_b64 = image_base64.split("base64,", 1)[1] if "base64," in image_base64 else image_base64
+            img_bytes = base64.b64decode(clean_b64)
+            pil_img = Image.open(io.BytesIO(img_bytes))
+            is_leaf, leaf_score, reason = CropAIService.get_instance().verify_leaf_presence(pil_img)
+            if not is_leaf:
+                return {
+                    "success": False,
+                    "status": "no_leaf_detected",
+                    "source": "offline_leaf_guard",
+                    "model": "krishi-saarthi-leaf-guard",
+                    "is_leaf_detected": False,
+                    "diagnosis": {
+                        "disease_name_en": "NO leaf detected in the image you provide",
+                        "disease_name_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+                        "crop": "None",
+                        "confidence": 0.0,
+                        "severity_percent": 0,
+                        "symptoms": ["No plant leaf or agricultural crop detected in the provided photo."],
+                        "immediate_action": "NO leaf detected in the image you provide. Please provide a clear, close-up photograph of a plant leaf.",
+                        "chemical_cure": "None (No crop leaf detected).",
+                        "organic_cure": "None.",
+                        "pathogen": "None"
+                    },
+                    "offline_fallback": True
+                }
+        except Exception as e:
+            logger.warning(f"Leaf guard check in ai_service error: {e}")
+            return {
+                "success": False,
+                "status": "no_leaf_detected",
+                "source": "offline_leaf_guard",
+                "model": "krishi-saarthi-leaf-guard",
+                "is_leaf_detected": False,
+                "diagnosis": {
+                    "disease_name_en": "NO leaf detected in the image you provide",
+                    "disease_name_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+                    "crop": "None",
+                    "confidence": 0.0,
+                    "severity_percent": 0,
+                    "symptoms": ["Could not decode or verify plant leaf from image."],
+                    "immediate_action": "Please provide a clear photograph of a crop leaf.",
+                    "chemical_cure": "None.",
+                    "organic_cure": "None.",
+                    "pathogen": "None"
+                },
+                "offline_fallback": True
+            }
+
         api_key = cls.get_api_key(override_key)
 
         if api_key and image_base64:
@@ -297,7 +394,37 @@ class AIService:
                 return res
 
             if not allowed:
-                logger.warning(f"Gemini Vision rate limit reached (15 req/hour). Triggering ICAR Offline Model.")
+                logger.warning(f"Gemini Vision rate limit reached (15 req/hour). Triggering PyTorch / ICAR Model.")
+                # Run local PyTorch MobileNetV3 inference first
+                try:
+                    inf_res = CropAIService.get_instance().run_inference(img_bytes, crop_hint=crop_hint)
+                    if not inf_res.get("is_leaf_detected", True):
+                        return CropAIService.get_instance()._build_no_leaf_response()
+                    dis_en = inf_res.get("disease_name") or inf_res.get("predicted_class") or "Leaf Spot"
+                    dis_hi = inf_res.get("disease_name_hi") or dis_en
+                    return {
+                        "success": True,
+                        "source": "edge_pytorch_mobilenetv3",
+                        "model": inf_res.get("model_engine") or "mobilenetv3-icar",
+                        "diagnosis": {
+                            "disease_name_hi": dis_hi,
+                            "disease_name_en": dis_en,
+                            "crop": inf_res.get("crop") or crop_hint or "Crop",
+                            "pathogen": "Identified by Krishi-Saarthi Deep Learning Pipeline",
+                            "confidence": float(inf_res.get("confidence") or 0.88),
+                            "severity_percent": 25.0 if "healthy" not in dis_en.lower() else 0.0,
+                            "chemical_cure": "ICAR CIBRC: Check standard package of practices.",
+                            "organic_cure": "Neem oil 1500 ppm @ 3-5 ml/L foliar spray.",
+                            "immediate_action": "Isolate affected foliage and monitor field conditions.",
+                            "spot_dosage_ml_per_liter": 1.5
+                        },
+                        "offline_fallback": True,
+                        "rate_limit_engaged": True,
+                        "quota_policy": "Strict 15 requests/hour free-tier protection guard active",
+                        "reset_in_seconds": reset_in
+                    }
+                except Exception as py_err:
+                    logger.warning(f"PyTorch inference fallback failed: {py_err}")
                 offline_res = cls._offline_image_diagnosis(crop_hint or "wheat", language)
                 offline_res["rate_limit_engaged"] = True
                 offline_res["quota_policy"] = "Strict 15 requests/hour free-tier protection guard active"
@@ -371,7 +498,35 @@ class AIService:
             except Exception as e:
                 logger.error(f"Gemini Vision diagnosis error: {e}", exc_info=True)
 
-        # Fallback to ICAR Agronomic Heuristic Engine
+        # Fallback to local PyTorch MobileNetV3 model on genuine leaf image
+        try:
+            inf_res = CropAIService.get_instance().run_inference(img_bytes, crop_hint=crop_hint)
+            if not inf_res.get("is_leaf_detected", True):
+                return CropAIService.get_instance()._build_no_leaf_response()
+            dis_en = inf_res.get("disease_name") or inf_res.get("predicted_class") or "Leaf Spot"
+            dis_hi = inf_res.get("disease_name_hi") or dis_en
+            return {
+                "success": True,
+                "source": "edge_pytorch_mobilenetv3",
+                "model": inf_res.get("model_engine") or "mobilenetv3-icar",
+                "diagnosis": {
+                    "disease_name_hi": dis_hi,
+                    "disease_name_en": dis_en,
+                    "crop": inf_res.get("crop") or crop_hint or "Crop",
+                    "pathogen": "Identified by Krishi-Saarthi Deep Learning Pipeline",
+                    "confidence": float(inf_res.get("confidence") or 0.88),
+                    "severity_percent": 25.0 if "healthy" not in dis_en.lower() else 0.0,
+                    "chemical_cure": "ICAR CIBRC: Check standard package of practices.",
+                    "organic_cure": "Neem oil 1500 ppm @ 3-5 ml/L foliar spray.",
+                    "immediate_action": "Isolate affected foliage and monitor field conditions.",
+                    "spot_dosage_ml_per_liter": 1.5
+                },
+                "offline_fallback": True
+            }
+        except Exception as e:
+            logger.warning(f"PyTorch inference fallback error: {e}")
+
+        # Final Fallback to ICAR Agronomic Heuristic Engine
         return cls._offline_image_diagnosis(crop_hint or "wheat", language)
 
     @classmethod

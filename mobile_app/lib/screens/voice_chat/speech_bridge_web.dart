@@ -137,6 +137,13 @@ String bridgeGetSpeechText() {
   return '';
 }
 
+void bridgeSetSpeechText(String text) {
+  try {
+    final safe = text.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+    _jsEval('window._copilotVoiceText = "$safe"'.toJS);
+  } catch (_) {}
+}
+
 String bridgeStopListening() {
   String result = '';
   try {

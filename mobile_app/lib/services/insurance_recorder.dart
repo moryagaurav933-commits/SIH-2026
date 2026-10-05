@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'device_permission_service.dart';
 
 /// Item representing a cryptographically secured insurance evidence package.
 /// Strictly non-downloadable and non-exportable outside the secure vault sandbox.
@@ -55,6 +58,56 @@ class InsuranceEvidenceItem {
     this.recordingMode = 'hardware',
     this.damagePercentage = 68.0,
   });
+
+  InsuranceEvidenceItem copyWith({
+    String? id,
+    String? policyNumber,
+    String? claimType,
+    String? cropName,
+    double? gpsLat,
+    double? gpsLon,
+    double? gpsAccuracy,
+    double? altitude,
+    String? locationName,
+    String? utcTimestamp,
+    String? istTimestamp,
+    String? videoSha256,
+    String? encryptionType,
+    int? durationSeconds,
+    String? estimatedLoss,
+    String? status,
+    String? deviceModel,
+    String? sensorHash,
+    bool? isPlayable,
+    String? videoPath,
+    String? recordingMode,
+    double? damagePercentage,
+  }) {
+    return InsuranceEvidenceItem(
+      id: id ?? this.id,
+      policyNumber: policyNumber ?? this.policyNumber,
+      claimType: claimType ?? this.claimType,
+      cropName: cropName ?? this.cropName,
+      gpsLat: gpsLat ?? this.gpsLat,
+      gpsLon: gpsLon ?? this.gpsLon,
+      gpsAccuracy: gpsAccuracy ?? this.gpsAccuracy,
+      altitude: altitude ?? this.altitude,
+      locationName: locationName ?? this.locationName,
+      utcTimestamp: utcTimestamp ?? this.utcTimestamp,
+      istTimestamp: istTimestamp ?? this.istTimestamp,
+      videoSha256: videoSha256 ?? this.videoSha256,
+      encryptionType: encryptionType ?? this.encryptionType,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      estimatedLoss: estimatedLoss ?? this.estimatedLoss,
+      status: status ?? this.status,
+      deviceModel: deviceModel ?? this.deviceModel,
+      sensorHash: sensorHash ?? this.sensorHash,
+      isPlayable: isPlayable ?? this.isPlayable,
+      videoPath: videoPath ?? this.videoPath,
+      recordingMode: recordingMode ?? this.recordingMode,
+      damagePercentage: damagePercentage ?? this.damagePercentage,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -113,6 +166,9 @@ class InsuranceEvidenceItem {
 /// Records tamper-proof video with live GPS, exact UTC timestamp, and SHA-256 cryptographic seal.
 /// Strictly enforces live camera capture ONLY (no gallery uploads) and zero external download/export capability.
 class InsuranceRecorder {
+  static final InsuranceRecorder _instance = InsuranceRecorder._internal();
+  factory InsuranceRecorder() => _instance;
+
   bool _isRecording = false;
   DateTime? _recordingStartTime;
   final List<Map<String, dynamic>> _sensorReadings = [];
@@ -158,67 +214,154 @@ class InsuranceRecorder {
 
   final List<InsuranceEvidenceItem> _vaultItems = List.from(_seededVault);
 
+  InsuranceRecorder._internal() {
+    _initPersistence();
+  }
+
+  Future<void> _initPersistence() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStrings = prefs.getStringList('pmfby_vault_items_v2');
+      if (savedStrings != null && savedStrings.isNotEmpty) {
+        _vaultItems.clear();
+        for (final str in savedStrings) {
+          try {
+            _vaultItems.add(InsuranceEvidenceItem.fromJson(jsonDecode(str)));
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('Vault persistence load error: $e');
+    }
+
+    // Auto-link real recorded video (output.mp4 or sample) to any item missing videoPath
+    await autoLinkRecordedVideos();
+  }
+
+  /// Automatically attaches existing recorded video on disk to vault items if they have none
+  Future<void> autoLinkRecordedVideos() async {
+    try {
+      if (kIsWeb) return;
+      final appDoc = await getApplicationDocumentsDirectory();
+      final cacheDir = Directory('${appDoc.parent.path}/Library/Caches');
+      File? candidateVideo;
+
+      final sampleFiles = [
+        File('${cacheDir.path}/output.mp4'),
+        File('${cacheDir.path}/pmfby_evidence_sample.mp4'),
+      ];
+      for (final f in sampleFiles) {
+        if (f.existsSync() && f.lengthSync() > 1000) {
+          candidateVideo = f;
+          break;
+        }
+      }
+
+      if (candidateVideo == null && cacheDir.existsSync()) {
+        final mp4s = cacheDir.listSync().whereType<File>().where((f) => f.path.endsWith('.mp4'));
+        for (final f in mp4s) {
+          if (f.lengthSync() > 1000) {
+            candidateVideo = f;
+            break;
+          }
+        }
+      }
+
+      if (candidateVideo != null) {
+        bool changed = false;
+        for (int i = 0; i < _vaultItems.length; i++) {
+          if (_vaultItems[i].videoPath == null ||
+              _vaultItems[i].videoPath!.isEmpty ||
+              !File(_vaultItems[i].videoPath!.replaceFirst('file://', '')).existsSync()) {
+            _vaultItems[i] = _vaultItems[i].copyWith(videoPath: candidateVideo.path);
+            changed = true;
+          }
+        }
+        if (changed) {
+          await _persistVault();
+        }
+      }
+    } catch (err) {
+      debugPrint('Auto-link video files error: $err');
+    }
+  }
+
+  Future<void> _persistVault() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStrings = _vaultItems.map((item) => jsonEncode(item.toJson())).toList();
+      await prefs.setStringList('pmfby_vault_items_v2', savedStrings);
+    } catch (e) {
+      debugPrint('Vault persist error: $e');
+    }
+  }
+
   List<InsuranceEvidenceItem> getVaultItems() {
     return List.unmodifiable(_vaultItems);
   }
 
   void addVaultItem(InsuranceEvidenceItem item) {
     _vaultItems.insert(0, item);
+    _persistVault();
   }
 
   /// Delete an evidence item from the vault by ID.
   bool deleteVaultItem(String id) {
     final initialLength = _vaultItems.length;
     _vaultItems.removeWhere((item) => item.id == id);
-    return _vaultItems.length < initialLength;
+    if (_vaultItems.length < initialLength) {
+      _persistVault();
+      return true;
+    }
+    return false;
   }
 
   /// Request Camera & Microphone Permissions.
   Future<Map<String, bool>> requestMediaPermissions() async {
-    if (kIsWeb) {
-      // In Web browsers, permissions are managed via browser dialog upon getUserMedia
-      return {'camera': true, 'microphone': true};
-    }
-
     try {
-      final cameraStatus = await Permission.camera.request();
-      final micStatus = await Permission.microphone.request();
-
+      final cam = await DevicePermissionService.requestCamera();
+      final mic = await DevicePermissionService.requestMicrophone();
       return {
-        'camera': cameraStatus.isGranted,
-        'microphone': micStatus.isGranted,
+        'camera': cam,
+        'microphone': mic,
       };
     } catch (e) {
       debugPrint('Permission request error: $e');
-      return {'camera': true, 'microphone': true};
+      return {'camera': false, 'microphone': false};
     }
   }
 
   /// Check if permissions are currently granted.
   Future<bool> hasMediaPermissions() async {
-    if (kIsWeb) return true;
     try {
-      final cameraGranted = await Permission.camera.isGranted;
-      final micGranted = await Permission.microphone.isGranted;
-      return cameraGranted && micGranted;
+      final cam = await DevicePermissionService.checkCamera();
+      final mic = await DevicePermissionService.checkMicrophone();
+      return cam && mic;
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
-  /// Get current real GPS coordinates with fallback
+  /// Get current real GPS coordinates with fast timeout fallback
   Future<Map<String, double>> getCurrentGpsLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled()
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
       if (serviceEnabled) {
-        LocationPermission permission = await Geolocator.checkPermission();
+        LocationPermission permission = await Geolocator.checkPermission()
+            .timeout(const Duration(seconds: 3), onTimeout: () => LocationPermission.denied);
         if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
+          permission = await Geolocator.requestPermission()
+              .timeout(const Duration(seconds: 3), onTimeout: () => LocationPermission.denied);
         }
-        if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
           final pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-          );
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 4),
+            ),
+          ).timeout(const Duration(seconds: 4));
           return {
             'lat': pos.latitude,
             'lon': pos.longitude,
@@ -228,7 +371,7 @@ class InsuranceRecorder {
         }
       }
     } catch (e) {
-      debugPrint('GPS fetch error: $e');
+      debugPrint('GPS fetch note: $e');
     }
     // High precision fallback for demo / testing
     return {

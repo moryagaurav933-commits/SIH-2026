@@ -10,7 +10,7 @@ import io
 import json
 import logging
 from typing import Dict, Any, Optional, List, Tuple
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 
 try:
@@ -25,6 +25,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
+
+
+class CropModelUnavailableError(RuntimeError):
+    """Raised when the trained model needed for a request is unavailable."""
+
+
+class InvalidCropImageError(ValueError):
+    """Raised when the uploaded bytes are not a usable leaf image."""
+
+
+class InvalidCropHintError(ValueError):
+    """Raised when a requested crop is outside the supported class catalog."""
 
 # Inference confidence and gating thresholds
 LOW_CONFIDENCE_THRESHOLD = 0.50
@@ -330,7 +342,7 @@ class CropAIService:
         return img.resize((224, 224), Image.BILINEAR)
 
     def _run_v1_inference(self, image_bytes: bytes, key: Optional[str]) -> Dict[str, Any]:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
         processed_img = self._preprocess_image_v1(img)
         tensor = self._transform_v1(processed_img).unsqueeze(0).to(self._device)
 
@@ -409,7 +421,7 @@ class CropAIService:
         }
 
     def _run_v2_inference(self, image_bytes: bytes, key: Optional[str]) -> Dict[str, Any]:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
         tensor = self._transform_v2(img).unsqueeze(0).to(self._device)
 
         with torch.no_grad():
@@ -476,44 +488,79 @@ class CropAIService:
             "model_engine": "PyTorch MobileNetV3 Large V2 (best_model_v2.pth)"
         }
 
-    def _run_fallback_inference(self, crop_hint: Optional[str] = None) -> Dict[str, Any]:
-        """Deterministic fallback when PyTorch models are not initialized."""
-        key = None
-        if crop_hint:
-            clean_hint = crop_hint.strip().lower()
-            if clean_hint in PLANT_INDICES:
-                key = clean_hint
+    def verify_leaf_presence(self, img: Image.Image) -> Tuple[bool, float, str]:
+        """
+        Botanical foliage verification guard.
+        Distinguishes real agricultural leaves and plant foliage from non-leaf images
+        (e.g., humans, faces, animals, vehicles, electronics, furniture, blank surfaces, etc.).
+        """
+        small = img.convert("RGB").resize((128, 128), Image.BILINEAR)
+        arr = np.array(small, dtype=np.float32)
+        r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
 
-        if key and key in PLANT_INDICES_V2:
-            crop_name, indices = PLANT_INDICES_V2[key]
-            predicted_class = self._class_names_v2[indices[0]] if indices else "Chilli___Healthy"
-            engine_str = "Fallback Agri-Inference Engine (V2)"
-        elif key and key in PLANT_INDICES_V1:
-            crop_name, indices = PLANT_INDICES_V1[key]
-            predicted_class = self._class_names[indices[0]] if indices else "Tomato___Early_blight"
-            engine_str = "Fallback Agri-Inference Engine (V1)"
-        else:
-            crop_name = "Tomato"
-            predicted_class = "Tomato___Early_blight"
-            engine_str = "Fallback Agri-Inference Engine"
+        # 1. Blank or uniform color check (reject solid white, black, grey, red, blue, beige, etc.)
+        channel_stds = np.std(arr, axis=(0, 1))
+        if float(np.mean(channel_stds)) < 12.0:
+            return False, 0.0, "blank_or_solid_non_leaf"
 
-        kb_entry = self._disease_kb.get(predicted_class, {})
+        # 2. Chlorophyll green foliage mask (living leaf tissue)
+        is_green = (g >= r * 0.98) & (g > b * 1.05) & (g > 28) & (g < 252)
+
+        # 3. Chlorotic / yellowing foliage (mosaic, yellow curl, nutrient chlorosis)
+        is_yellow = (r > 60) & (g > 60) & (g >= r * 0.85) & (b < r * 0.80) & (b < g * 0.80) & (np.abs(r - g) < 40)
+
+        # 4. Necrotic / blight lesions (brown spots with distinct edge contrast)
+        is_necrotic = (r > 35) & (r < 220) & (g > 20) & (g < r * 0.95) & (b < g * 0.85) & ((r - b) > 15)
+
+        # 5. Human skin / portrait tone detection
+        is_skin = (r > 60) & (g > 35) & (r > g + 12) & (g > b) & ((r - b) > 25)
+
+        green_ratio = float(np.mean(is_green))
+        yellow_ratio = float(np.mean(is_yellow))
+        foliage_ratio = green_ratio + yellow_ratio
+        skin_ratio = float(np.mean(is_skin))
+
+        # Check center region (where human face/subject is focused)
+        h, w, _ = arr.shape
+        center = arr[h//4:3*h//4, w//4:3*w//4]
+        cr, cg, cb = center[:, :, 0], center[:, :, 1], center[:, :, 2]
+        center_skin = float(np.mean((cr > 60) & (cg > 35) & (cr > cg + 12) & (cg > cb) & ((cr - cb) > 25)))
+        center_green = float(np.mean((cg >= cr * 0.98) & (cg > cb * 1.05) & (cg > 28)))
+
+        # Rule A: Rejection of human portraits / faces / selfies
+        if center_skin > 0.45 and center_green < 0.20:
+            return False, foliage_ratio, "human_subject_or_face_detected"
+        if skin_ratio > 0.30 and foliage_ratio < 0.15:
+            return False, foliage_ratio, "human_subject_or_body_detected"
+
+        # Rule B: Lack of botanical foliage
+        # A legitimate leaf close-up must contain at least 8% green/chlorotic foliage
+        if foliage_ratio < 0.08:
+            necrotic_ratio = float(np.mean(is_necrotic))
+            # Only allow severe brown blight if there is still surrounding vegetative tissue
+            if not (necrotic_ratio > 0.25 and green_ratio >= 0.04):
+                return False, foliage_ratio, "no_botanical_foliage_detected"
+
+        return True, foliage_ratio, "leaf_detected"
+
+    def _build_no_leaf_response(self) -> Dict[str, Any]:
         return {
-            "predicted_class": predicted_class,
-            "disease_name_hi": DISEASE_HINDI_NAMES.get(predicted_class, predicted_class),
-            "crop": crop_name,
-            "confidence": 0.9420,
-            "is_healthy": "healthy" in predicted_class.lower(),
-            "top_3_predictions": [
-                {
-                    "class_name": predicted_class,
-                    "confidence": 0.9420,
-                    "hindi_name": DISEASE_HINDI_NAMES.get(predicted_class, predicted_class)
-                }
-            ],
-            "kb_immediate_action": kb_entry.get("immediate_action", "Isolate affected plant parts and avoid overhead irrigation."),
-            "kb_faq": kb_entry.get("faq", []),
-            "model_engine": engine_str
+            "predicted_class": "no_leaf_detected",
+            "disease_name": "NO leaf detected in the image you provide",
+            "disease_name_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+            "crop": "None",
+            "confidence": 0.0,
+            "is_healthy": False,
+            "is_low_confidence": True,
+            "is_crop_mismatch": True,
+            "is_leaf_detected": False,
+            "crop_match_confidence": 0.0,
+            "message": "NO leaf detected in the image you provide",
+            "message_hi": "प्रदान की गई छवि में कोई पत्ती नहीं मिली (NO leaf detected in the image you provide)",
+            "top_3_predictions": [],
+            "kb_immediate_action": "Please provide a clear photograph of a crop leaf.",
+            "kb_faq": [],
+            "model_engine": "Krishi-Saarthi Botanical Guard + PyTorch MobileNetV3"
         }
 
     def run_inference(self, image_bytes: bytes, crop_hint: Optional[str] = None) -> Dict[str, Any]:
@@ -523,27 +570,66 @@ class CropAIService:
         - Routes to V2 (8 crops / 24 classes) when hint is Cashew, Cassava, Chilli, Cotton, Grape, Groundnut, Papaya, or Soybean.
         - Evaluates BOTH models when hint is None or 'all', picking the highest-confidence prediction.
         """
+        if not image_bytes:
+            raise InvalidCropImageError("The uploaded image is empty.")
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as image:
+                if image.width < 32 or image.height < 32:
+                    raise InvalidCropImageError("Image must be at least 32 by 32 pixels.")
+                image.verify()
+        except InvalidCropImageError:
+            raise
+        except Exception as exc:
+            raise InvalidCropImageError("Could not decode the uploaded image.") from exc
+
+        # Botanical leaf verification guard
+        try:
+            pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
+            is_leaf, leaf_score, reason = self.verify_leaf_presence(pil_img)
+            if not is_leaf:
+                logger.info(f"Non-leaf image rejected by leaf detector (score={leaf_score:.4f}, reason={reason})")
+                return self._build_no_leaf_response()
+        except Exception as e:
+            logger.warning(f"Leaf guard evaluation exception: {e}")
+
         if not TORCH_AVAILABLE or (self._model is None and self._model_v2 is None):
             self._initialize()
-            if self._model is None and self._model_v2 is None:
-                return self._run_fallback_inference(crop_hint)
+        if not TORCH_AVAILABLE or (self._model is None and self._model_v2 is None):
+            raise CropModelUnavailableError(
+                "No trained crop disease model is available. Install PyTorch and both model checkpoints."
+            )
 
         try:
             key = crop_hint.strip().lower() if crop_hint else None
-            if key in ("all", "universal", "none", ""):
+            if key and (key in ("all", "universal", "none", "") or key.startswith("all ")):
                 key = None
 
+            if key and key not in PLANT_INDICES:
+                raise InvalidCropHintError(
+                    f"Unsupported crop '{crop_hint}'. Choose one of the 12 supported crops or 'all'."
+                )
+
             # Route to V2 model if crop_hint is explicitly a V2 crop
-            if key and key in PLANT_INDICES_V2 and self._model_v2 is not None:
+            if key and key in PLANT_INDICES_V2:
+                if self._model_v2 is None:
+                    raise CropModelUnavailableError("The V2 crop model is not loaded.")
                 return self._run_v2_inference(image_bytes, key)
 
             # Route to V1 model if crop_hint is explicitly a V1 crop
-            if key and key in PLANT_INDICES_V1 and self._model is not None:
+            if key and key in PLANT_INDICES_V1:
+                if self._model is None:
+                    raise CropModelUnavailableError("The V1 crop model is not loaded.")
                 return self._run_v1_inference(image_bytes, key)
 
-            # If crop_hint is None / All: Run BOTH V1 and V2 models, pick highest confidence / mass
-            res_v1 = self._run_v1_inference(image_bytes, None) if self._model is not None else None
-            res_v2 = self._run_v2_inference(image_bytes, None) if self._model_v2 is not None else None
+            # Universal detection is valid only when both models cover the full catalog.
+            if self._model is None or self._model_v2 is None:
+                raise CropModelUnavailableError(
+                    "Universal detection requires both trained model checkpoints."
+                )
+
+            # If crop_hint is None / All: run both specialist models.
+            res_v1 = self._run_v1_inference(image_bytes, None)
+            res_v2 = self._run_v2_inference(image_bytes, None)
 
             if res_v1 and res_v2:
                 # If one model detected an explicit disease with high confidence (>= 0.70)
@@ -562,11 +648,14 @@ class CropAIService:
             elif res_v1:
                 return res_v1
             else:
-                return self._run_fallback_inference(crop_hint)
+                raise CropModelUnavailableError("No trained model can handle this crop request.")
+
+        except (CropModelUnavailableError, InvalidCropHintError, InvalidCropImageError):
+            raise
 
         except Exception as e:
             logger.error(f"Inference execution error: {e}", exc_info=True)
-            return self._run_fallback_inference(crop_hint)
+            raise RuntimeError("Crop disease inference failed; no prediction was returned.") from e
 
     async def get_disease_profile_from_db(self, db: Optional[AsyncSession], ml_class_name: str) -> Optional[Dict[str, Any]]:
         # 1. Primary: Try active session (SQLite or PostgreSQL)
