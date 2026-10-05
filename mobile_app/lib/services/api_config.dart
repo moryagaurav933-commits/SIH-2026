@@ -58,6 +58,8 @@ class ApiConfig {
   static String get dashboardStatsUrl => '$baseUrl/dashboard/stats';
   static String get fertilizerVerifyUrl => '$baseUrl/fertilizer/verify';
   static String get insuranceClaimsUrl => '$baseUrl/insurance/claims';
+  static String get gisTelemetryUrl => '$baseUrl/kriging/gis-telemetry';
+  static String get staticMapProxyUrl => '$baseUrl/kriging/static-map';
 
   // Krishi Marketplace Endpoints
   static String get marketplaceProductsUrl => '$baseUrl/marketplace/products';

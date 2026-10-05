@@ -7,11 +7,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../../localization/app_language.dart';
 import '../../localization/app_translations.dart';
+import '../../services/api_config.dart';
 import '../../services/field_service.dart';
 import '../../services/shared_radar_service.dart';
-
-/// Predefined Google Maps Platform API Key (for optional satellite layer overlay)
-const String kGoogleMapsApiKey = 'AIzaSyADcZNbVJEARp2asaasNm_-4vHYzlaLqLU';
 
 /// Disease Outbreak Item on GIS Telemetry Radar
 class GisOutbreakCluster {
@@ -819,12 +817,11 @@ class _GisTelemetryScreenState extends State<GisTelemetryScreen>
   Widget _buildWorldMapBaseTiles(double viewportW, double viewportH) {
     if (_mapType == 'satellite') {
       final staticUrl =
-          'https://maps.googleapis.com/maps/api/staticmap?'
-          'center=$_userLat,$_userLon'
+          '${ApiConfig.baseUrl}/kriging/static-map?'
+          'lat=$_userLat&lon=$_userLon'
           '&zoom=${_zoomLevel.clamp(3, 18).toInt()}'
           '&size=640x640&scale=2'
-          '&maptype=satellite'
-          '&key=$kGoogleMapsApiKey';
+          '&maptype=satellite';
 
       return Transform.translate(
         offset: _mapOffset,

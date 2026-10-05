@@ -1,13 +1,15 @@
 """
 Kriging / Vector Mapping endpoints - Disease risk prediction.
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import math
 import random
+import httpx
+from app.config import settings
 from app.db.session import get_db
 from app.models.disease_telemetry import DiseaseTelemetry
 from app.schemas.schemas import KrigingResponse
@@ -333,15 +335,12 @@ async def get_gis_telemetry(
         "status": "success",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "google_maps": {
-            "api_key": api_key,
+            "configured": bool(api_key),
+            "provider": "krishi_secure_global_gateway",
             "map_type": "terrain",
             "default_zoom": 13,
-            "terrain_tile_url": f"https://mt1.google.com/vt/lyrs=p&x={{x}}&y={{y}}&z={{z}}&key={api_key}",
-            "static_terrain_url": (
-                f"https://maps.googleapis.com/maps/api/staticmap?"
-                f"center={lat},{lon}&zoom=13&size=640x480&scale=2&maptype=terrain"
-                f"&markers=color:green%7Clabel:F%7C{lat},{lon}&key={api_key}"
-            ),
+            "static_map_proxy_url": f"/api/v1/kriging/static-map?lat={lat}&lon={lon}&zoom=13&maptype=terrain",
+            "static_satellite_proxy_url": f"/api/v1/kriging/static-map?lat={lat}&lon={lon}&zoom=13&maptype=satellite",
         },
         "user_khet": {
             "gps_lat": lat,
@@ -365,5 +364,85 @@ async def get_gis_telemetry(
         },
         "nearby_outbreaks": outbreaks,
     }
+
+
+@router.get("/static-map")
+async def get_static_map(
+    lat: float = Query(default=26.8467, description="Center latitude"),
+    lon: float = Query(default=80.9462, description="Center longitude"),
+    zoom: int = Query(default=13, ge=1, le=20, description="Zoom level"),
+    size: str = Query(default="640x640", description="Image pixel dimensions"),
+    scale: int = Query(default=2, ge=1, le=2, description="High DPI scale factor"),
+    maptype: str = Query(default="satellite", description="Map style: satellite, terrain, or roadmap"),
+):
+    """
+    Enterprise Secure Basemap & Satellite Tile Proxy.
+    Shields backend credentials behind Krishi-Saarthi's global security layer.
+    Clients receive direct, crisp satellite/terrain imagery without ever exposing raw API keys.
+    Automatically cascades to ESRI World Imagery or OpenTopoMap if Google Maps API is offline.
+    """
+    api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "").strip()
+
+    # 1. Attempt Google Maps Platform server-side proxy
+    if api_key and len(api_key) > 10:
+        google_url = (
+            f"https://maps.googleapis.com/maps/api/staticmap?"
+            f"center={lat},{lon}&zoom={zoom}&size={size}&scale={scale}&maptype={maptype}&key={api_key}"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(google_url)
+                if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                    return Response(
+                        content=resp.content,
+                        media_type=resp.headers.get("content-type", "image/jpeg"),
+                        headers={"Cache-Control": "public, max-age=86400, s-maxage=86400"},
+                    )
+        except Exception:
+            pass
+
+    # 2. Resilient High-Resolution Satellite & Topography Fallback
+    try:
+        clamped_zoom = max(1, min(zoom, 18))
+        n = 1 << clamped_zoom
+        tile_x = int((lon + 180.0) / 360.0 * n)
+        lat_rad = math.radians(lat)
+        tile_y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+        tile_x = max(0, min(tile_x, n - 1))
+        tile_y = max(0, min(tile_y, n - 1))
+
+        if maptype in ["satellite", "hybrid"]:
+            fallback_tile_url = f"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{clamped_zoom}/{tile_y}/{tile_x}"
+        elif maptype == "terrain":
+            fallback_tile_url = f"https://a.tile.opentopomap.org/{clamped_zoom}/{tile_x}/{tile_y}.png"
+        else:
+            fallback_tile_url = f"https://tile.openstreetmap.org/{clamped_zoom}/{tile_x}/{tile_y}.png"
+
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                fallback_tile_url,
+                headers={"User-Agent": "KrishiSaarthiBasemapGateway/2.0"},
+            )
+            if resp.status_code == 200:
+                media_type = resp.headers.get(
+                    "content-type",
+                    "image/jpeg" if "jpg" in fallback_tile_url or "jpeg" in fallback_tile_url else "image/png",
+                )
+                return Response(
+                    content=resp.content,
+                    media_type=media_type,
+                    headers={"Cache-Control": "public, max-age=86400, s-maxage=86400"},
+                )
+    except Exception:
+        pass
+
+    # 3. Transparent 1x1 fallback pixel if all network tile sources are unreachable
+    empty_png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00"
+        b"\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00"
+        b"\x00\x00IEND\xaeB`\x82"
+    )
+    return Response(content=empty_png, media_type="image/png")
+
 
 
