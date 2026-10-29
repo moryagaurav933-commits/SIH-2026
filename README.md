@@ -3,6 +3,14 @@
 
 
 
+
+
+
+
+
+
+
+
 # 🌾 Krishi-Saarthi (कृषि-सारथी) — Field OS for Indian Farmers
 
 > **An Edge-First, Offline-Capable AI Agricultural Operating System**  
