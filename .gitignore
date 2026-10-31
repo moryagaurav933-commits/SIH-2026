@@ -190,3 +190,5 @@ Desktop.ini
 *.log
 *.err
 docker-compose.override.yml
+.vercel
+.env*

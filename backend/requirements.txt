@@ -1,82 +1,24 @@
-# Krishi-Saarthi Backend Dependencies
-# Core
+# Krishi-Saarthi Production Backend Dependencies
 fastapi==0.115.0
 uvicorn[standard]==0.30.0
 pydantic==2.9.0
 pydantic-settings==2.5.0
-
-# Database
 sqlalchemy==2.0.35
 asyncpg>=0.30.0
-psycopg2-binary>=2.9.9
+aiosqlite==0.20.0
 alembic==1.13.3
-
-# Auth & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 cryptography==43.0.0
 python-multipart==0.0.9
-
-# Task Queue
-celery==5.4.0
-redis==5.0.0
-
-# HTTP
 httpx==0.27.0
 aiohttp==3.10.0
 requests==2.32.3
-
-# Data & ML
 numpy>=1.24
-pandas>=2.0
-scipy>=1.10
-scikit-learn>=1.3
-# Deep learning (CPU). On macOS/Windows this is enough; the crop disease model
-# is MobileNetV3 in ai_module/best_model_final.pth. For NVIDIA GPU, install the
-# CUDA build instead:  pip install torch torchvision --index-url
-# https://download.pytorch.org/whl/cu121
-torch>=2.0
-torchvision>=0.15
 pillow>=10.0
-ai-edge-litert>=2.0
-
-# Geo
-geopandas==1.0.0
-shapely>=2.0.0
-
-# Compression
-brotli==1.1.0
-zstandard==0.23.0
-
-# Logging
 structlog==24.4.0
-
-# Utilities
 python-dotenv==1.0.1
 shortuuid==1.0.13
 tenacity==9.0.0
-
-# Testing
-pytest==8.3.0
-pytest-asyncio==0.24.0
-# SQLite Async (development)
-aiosqlite==0.20.0
-
-# ---------------------------------------------------------------------------
-# OPTIONAL: local offline LLM (tinyllama.gguf)
-# ---------------------------------------------------------------------------
-# DO NOT uncomment unless you specifically want the offline chat fallback.
-# ai_service.py already handles a missing llama_cpp gracefully (it is wrapped in
-# try/except ImportError) and falls back to Gemini + the ICAR RAG knowledge base,
-# so every other feature works without it.
-#
-# Why it is off by default: llama-cpp-python compiles C++ from source and needs a
-# working CMake + a C/C++ compiler (Visual Studio Build Tools on Windows, Xcode
-# CLI tools on macOS). Without those, `pip install -r requirements.txt` fails
-# with "CMake configuration failed" and NOBODY can install the project at all.
-#
-# On Windows install the Build Tools first, then:
-#   pip install llama-cpp-python==0.2.79
-# On macOS:  xcode-select --install
-# ---------------------------------------------------------------------------
-# llama-cpp-python==0.2.79
+redis==5.0.0
+celery==5.4.0

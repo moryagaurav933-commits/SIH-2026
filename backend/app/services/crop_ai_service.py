@@ -592,6 +592,25 @@ class CropAIService:
         except Exception as e:
             logger.warning(f"Leaf guard evaluation exception: {e}")
 
+        # Vercel Service Binding: Route to internal ai_module microservice if bound
+        ai_module_url = os.getenv("AI_MODULE_URL")
+        if ai_module_url:
+            try:
+                import httpx
+                target_url = ai_module_url.rstrip("/") + "/predict"
+                logger.info(f"Delegating inference to bound internal AI module: {target_url}")
+                with httpx.Client(timeout=30.0) as client:
+                    resp = client.post(
+                        target_url,
+                        files={"file": ("leaf.jpg", image_bytes, "image/jpeg")},
+                        data={"crop_hint": crop_hint or ""}
+                    )
+                    if resp.status_code == 200:
+                        return resp.json()
+                    logger.warning(f"ai_module returned HTTP {resp.status_code}: {resp.text}")
+            except Exception as e:
+                logger.warning(f"ai_module service binding call failed ({e}); falling back to local engine.")
+
         if not TORCH_AVAILABLE or (self._model is None and self._model_v2 is None):
             self._initialize()
         if not TORCH_AVAILABLE or (self._model is None and self._model_v2 is None):
