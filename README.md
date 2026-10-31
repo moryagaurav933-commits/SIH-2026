@@ -1,4 +1,17 @@
-# 🌾 Krishi-Saarthi (कृषि-सारथी) — Field OS for Indian Farmers
+## Direct Link - https://web-kappa-ashy-63.vercel.app/
+
+
+
+
+
+
+
+
+
+
+
+
+#🌾 Krishi-Saarthi (कृषि-सारथी) — Field OS for Indian Farmers
 
 > **An Edge-First, Offline-Capable AI Agricultural Operating System**  
 > Engineered for smallholder and marginal farmers across rural India. Featuring on-device Computer Vision diagnosis, trilingual Voice Copilot with Speech Bridge, live Agmarknet mandi market rates, hyperlocal meteorological forecasts, and tamper-proof geo-tagged insurance evidence collection.
